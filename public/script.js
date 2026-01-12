@@ -18,8 +18,8 @@ function displayPost(name, date, title, content, categories) {
     `
     container.appendChild(body)
 }
-
-
+displayPost('ytest' , '2010-02-02' , 'titest' , ' content test' , 'cat test')
+displayPost('ytest' , '2010-02-02' , 'titest' , ' content test' , 'cat test')
 displayPost('ytest' , '2010-02-02' , 'titest' , ' content test' , 'cat test')
 
 function creatPost(){

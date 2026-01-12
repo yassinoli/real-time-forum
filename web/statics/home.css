@@ -1,0 +1,69 @@
+body{
+    padding-inline: 2%;
+    display: flex;
+    flex-direction: column;
+}
+.postContainer{
+    display: flex;
+    flex-direction: column;
+    border-radius: 12px;
+    background-color: rgb(218, 218, 218);
+    color: black;
+    width: 30%;
+    padding-inline: 10%;
+    margin-top: 2%;
+}
+
+.postInfo{
+    display: flex;
+    flex-direction: row;
+    justify-content: space-around;
+}
+
+.creatPostDiv{
+    position: fixed;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 70vw;
+    height: 80vh;
+    margin: 10vh 15vw;
+    border: 1px solid black;
+    border-radius: 14px;
+    background-color: grey;
+}
+
+header{
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+}
+main{
+    padding-inline: 10%;
+    padding-block: 5%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    width: 100%;
+}
+
+.catLi > button{
+    width: 60px;
+    height: 25px;
+    border-radius: 8px;
+    border: none;
+    background-color: antiquewhite;
+    cursor: pointer;
+}
+
+.categorit{
+    position: absolute;
+border: 1px solid black;
+width: 10vw;
+height: 4vh;
+border-radius: 10px;
+}
+
+.categorienews{
+
+}
