@@ -14,3 +14,26 @@ type Resp struct {
 	Code    int    `json:"code"`
 	Error   error  `json:"error"`
 }
+
+type Comment struct {
+	CommentID    int
+	Username     string
+	UserID       int
+	Content      string
+	Timed        string
+}
+
+type Post struct{
+	UserID         int
+	NickName string
+	PostID         int
+	Username       string
+	Title          string
+	Content        string
+	CommentCount   int
+	CreatedAt      string
+	Comments       []Comment
+	LoggedIn       bool
+	Categories     []string
+	CommentStatus  string
+}
