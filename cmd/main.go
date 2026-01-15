@@ -1,44 +1,58 @@
 package main
 
 import (
-	//"database/sql"
+	"database/sql"
 	"fmt"
 	"net/http"
 
 	"real-time-forum/internal/handlers"
-	//"real-time-forum/internal/models"
+	"real-time-forum/internal/models"
 	"real-time-forum/internal/websocket"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
 func main() {
-	// db, err := sql.Open("sqlite3", "../internal/database/real-time-forum.db")
-	// if err != nil {
-	// 	fmt.Println("error cearting db file: ", err)
-	// 	return
-	// }
+	db, err := sql.Open("sqlite3", "./internal/database/real-time-forum.db")
+	if err != nil {
+		fmt.Println("error creating db file: ", err)
+		return
+	}
 
-	// defer db.Close()
+	defer db.Close()
 
-	// if err := db.Ping(); err != nil {
-	// 	fmt.Println("db ping error:", err)
-	// 	return
-	// }
+	if err := db.Ping(); err != nil {
+		fmt.Println("db ping error:", err)
+		return
+	}
 
-	// _, err = db.Exec(models.Initialize)
-	// if err != nil {
-	// 	fmt.Println("error cearting tables: ", err)
-	// 	return
-	// }
+	_, err = db.Exec(models.Initialize)
+	if err != nil {
+		fmt.Println("error creating tables: ", err)
+		return
+	}
 
-	// app := &handlers.App{
-	// 	DB: db,
-	// }
+	app := &handlers.App{
+		DB: db,
+	}
 
-	// http.HandleFunc("/", app.HomeHanlder)
-	// http.HandleFunc("/register", app.HandleRegister)
+	// Serve static files
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" {
+			http.ServeFile(w, r, "./web/index.html")
+		} else {
+			handlers.ServeStatic(w, r)
+		}
+	})
 	http.HandleFunc("/statics/", handlers.ServeStatic)
+
+	// API routes
+	http.HandleFunc("/api/posts", app.GetPostsHandler)
+	http.HandleFunc("/api/post", app.GetPostHandler)
+	http.HandleFunc("/api/posts/create", app.CreatePostHandler)
+	http.HandleFunc("/api/comments/add", app.AddCommentHandler)
+
+	// WebSocket
 	http.HandleFunc("/ws", websocket.WebsocketHandler)
 
 	fmt.Println("Server started. Go to http://localhost:8080")

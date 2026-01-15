@@ -20,7 +20,7 @@ func AddComment(db *sql.DB, UserID int, PostID *int, Content string) error {
 		return errors.New("void or to big comment")
 	}
 	_, err := db.Exec(`
-		INSERT INTO comments (user_id, post_id, content)
+		INSERT INTO comment (user_id, post_id, content)
 		VALUES (?, ?, ?)
 	`, UserID, PostID, Content)
 	return err
@@ -30,7 +30,7 @@ func AddComment(db *sql.DB, UserID int, PostID *int, Content string) error {
 func CountCommentsForPost(db *sql.DB, postID int) (int, error) {
 	row := db.QueryRow(`
 		SELECT COUNT(*)
-		FROM comments
+		FROM comment
 		WHERE post_id = ?
 	`, postID)
 

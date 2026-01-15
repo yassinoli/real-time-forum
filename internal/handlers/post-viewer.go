@@ -10,7 +10,6 @@ import (
 	"real-time-forum/internal/helpers"
 	"real-time-forum/internal/models"
 	"strconv"
-	"strings"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -42,7 +41,7 @@ func (app *App) PostViewerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// check user session
-	userID, username, loggedIn := 1 , "yassin" , true //session(app, w, r)
+	userID, username, loggedIn := 1, "yassin", true //session(app, w, r)
 
 	// get post with comments from the database
 	post, err := GetPostWithComments(app, postID, userID)
@@ -110,8 +109,6 @@ func GetPostWithComments(app *App, postID, userID int) (models.Post, error) {
 		post.Categories = append(post.Categories, category)
 	}
 
-
-
 	// Fetch comments
 	rows, err := app.DB.Query(`
 		SELECT c.id, u.username, u.id, c.content, c.created_at
@@ -132,47 +129,14 @@ func GetPostWithComments(app *App, postID, userID int) (models.Post, error) {
 
 		comment.Timed = timecomment.Format("Jan 02, 2006 15:04")
 
-	
 		post.Comments = append(post.Comments, comment)
 	}
 
 	return post, nil
 }
 
-// Handle adding comment
-func (app *App) AddCommentHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		fmt.Printf("\033[43m [METHOD NOT ALLOWED] 405 \033[0m method not allowed: %s\n", r.Method)
-		RenderErrorPage(app, w, r, errors.New("methode not allowed"), http.StatusMethodNotAllowed)
-		return
-	}
-
-	postIDStr := r.FormValue("post_id")
-	content := strings.TrimSpace(r.FormValue("content"))
-
-	postID, err := strconv.Atoi(postIDStr)
-	if err != nil {
-		RenderErrorPage(app, w, r, errors.New("ID must be a number "), 400)
-		return
-	}
-
-	userID, _, _ := 1 , 0 , 0//SessionChecker(app, w, r)
-
-	if userID == 0 {
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
-		return
-	}
-
-	if status := CheckComment(content); status != "" {
-		http.Redirect(w, r, "/post-viewer?id="+postIDStr+"&error="+status, http.StatusSeeOther)
-		return
-	}
-
-	if err := helpers.AddComment(app.DB, userID, &postID, content ); err != nil {
-		log.Println("Error adding comment:", err)
-	}
-	http.Redirect(w, r, "/post-viewer?id="+postIDStr, http.StatusSeeOther)
-}
+// AddCommentHandler has been moved to api.go for JSON API responses
+// The old HTML-based handler has been removed in favor of the API version
 
 // Handle post like/dislike
 func (app *App) LikePostHandler(w http.ResponseWriter, r *http.Request) {
@@ -185,14 +149,13 @@ func (app *App) LikePostHandler(w http.ResponseWriter, r *http.Request) {
 	postIDStr := r.FormValue("post_id")
 	valueStr := r.FormValue("value")
 
-	
 	value, err := strconv.Atoi(valueStr)
 	if err != nil || (value != 1 && value != -1) {
 		RenderErrorPage(app, w, r, errors.New("value of like & dislike must be 1 or -1"), 400)
 		return
 	}
 
-	userID, _, _ := 1,0,0 //SessionChecker(app, w, r)
+	userID, _, _ := 1, 0, 0 //SessionChecker(app, w, r)
 
 	if userID == 0 {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
@@ -225,7 +188,7 @@ func (app *App) LikeCommentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, _, _ := 1,0,0//SessionChecker(app, w, r)
+	userID, _, _ := 1, 0, 0 //SessionChecker(app, w, r)
 
 	if userID == 0 {
 
