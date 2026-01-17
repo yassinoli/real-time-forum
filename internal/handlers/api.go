@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"real-time-forum/internal/helpers"
 	"strconv"
 	"strings"
+
+	"real-time-forum/internal/helpers"
 )
 
 // setCORSHeaders sets CORS headers for API responses
@@ -19,12 +20,12 @@ func setCORSHeaders(w http.ResponseWriter) {
 // GetPostsHandler returns all posts as JSON
 func (app *App) GetPostsHandler(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w)
-	
+
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
-	
+
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -44,12 +45,12 @@ func (app *App) GetPostsHandler(w http.ResponseWriter, r *http.Request) {
 // GetPostHandler returns a single post with comments as JSON
 func (app *App) GetPostHandler(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w)
-	
+
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
-	
+
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -81,12 +82,12 @@ func (app *App) GetPostHandler(w http.ResponseWriter, r *http.Request) {
 // CreatePostHandler handles post creation
 func (app *App) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w)
-	
+
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
-	
+
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -95,7 +96,7 @@ func (app *App) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 	// Parse form data - handle both multipart/form-data and application/x-www-form-urlencoded
 	contentType := r.Header.Get("Content-Type")
 	fmt.Printf("Content-Type: %s\n", contentType)
-	
+
 	if strings.HasPrefix(contentType, "multipart/form-data") {
 		if err := r.ParseMultipartForm(32 << 20); err != nil { // 32MB max
 			fmt.Printf("Error parsing multipart form: %v\n", err)
@@ -115,7 +116,7 @@ func (app *App) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 	categoriesStr := r.FormValue("categories")
 
 	fmt.Printf("Creating post - Title: '%s', Content length: %d, Categories: '%s'\n", title, len(content), categoriesStr)
-	
+
 	if title == "" {
 		http.Error(w, "Title cannot be empty", http.StatusBadRequest)
 		return
@@ -184,12 +185,12 @@ func (app *App) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 // AddCommentHandler handles comment creation
 func (app *App) AddCommentHandler(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w)
-	
+
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
-	
+
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -250,4 +251,25 @@ func (app *App) AddCommentHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(post)
+}
+
+func (app *App) GetHeader(w http.ResponseWriter, r *http.Request) {
+    setCORSHeaders(w)
+
+    if r.Method == http.MethodOptions {
+        w.WriteHeader(http.StatusNoContent)
+        return
+    }
+
+    if r.Method != http.MethodGet {
+        http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+        return
+    }
+
+    user := FakeSession()
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(map[string]bool{
+        "heading": user.LoggedIn,
+    })
 }

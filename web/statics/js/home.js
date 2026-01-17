@@ -269,7 +269,7 @@ async function loadPosts(category = '') {
         }
         
         const posts = await response.json()
-        console.log('Posts loaded:', posts.length, 'posts')
+        console.log(posts.length, 'posts loaded')
         
         // Filter by category if specified
         let filteredPosts = posts
@@ -295,39 +295,79 @@ function escapeHtml(text) {
     return div.innerHTML
 }
 
-/*------------web socket---------------------*/
-const socket = new WebSocket("ws://localhost:8080/ws");
-
-socket.onopen = () => {
-    console.log("Connected to WebSocket");
-};
-
-socket.onmessage = (event) => {
+async function headerCheck() {
     try {
-        const data = JSON.parse(event.data)
-        if (data.type === 'new_post') {
-            // Reload posts when a new post is created
-            loadPosts()
-        } else if (data.type === 'new_comment') {
-            // Reload comments for the specific post
-            const postId = data.postId
-            const commentsContainer = document.getElementById(`comments-${postId}`)
-            if (commentsContainer && commentsContainer.style.display !== 'none') {
-                loadComments(postId)
-            }
+        const response = await fetch('/api/header-check')
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`)
         }
+
+        const text = await response.text()
+        if (!text) {
+            throw new Error('Empty response body')
+        }
+
+        const data = await JSON.parse(text)
+        return data
     } catch (error) {
-        console.error('Error processing WebSocket message:', error)
+        console.error('Error during header check:', error)
     }
-};
-
-socket.onclose = () => {
-    console.log("Connection closed");
-};
-
-if (document.getElementById("send")) {
-    document.getElementById("send").addEventListener("click", () => {
-        const msg = document.getElementById("msg").value;
-        socket.send(msg);
-    });
 }
+
+headerCheck().then(data => {
+    const creatpst = document.querySelector('.createPost')
+    const lgn = document.querySelector('.LoginH')
+     const rgst = document.querySelector('.Registerh')
+          const lgout = document.querySelector('.LogoutH')
+
+   
+    if (data.heading==true) {
+        lgn.style.display = 'none'
+        rgst.style.display = 'none'
+    }
+
+    if (data.heading==false) {
+        creatpst.style.display = 'none'
+        lgout.style.display = 'none'
+    }
+})
+
+
+
+/*------------web socket---------------------*/
+// const socket = new WebSocket("ws://localhost:8080/ws");
+
+// socket.onopen = () => {
+//     console.log("Connected to WebSocket");
+// };
+
+// socket.onmessage = (event) => {
+//     try {
+//         const data = JSON.parse(event.data)
+//         if (data.type === 'new_post') {
+//             // Reload posts when a new post is created
+//             loadPosts()
+//         } else if (data.type === 'new_comment') {
+//             // Reload comments for the specific post
+//             const postId = data.postId
+//             const commentsContainer = document.getElementById(`comments-${postId}`)
+//             if (commentsContainer && commentsContainer.style.display !== 'none') {
+//                 loadComments(postId)
+//             }
+//         }
+//     } catch (error) {
+//         console.error('Error processing WebSocket message:', error)
+//     }
+// };
+
+// socket.onclose = () => {
+//     console.log("Connection closed");
+// };
+
+// if (document.getElementById("send")) {
+//     document.getElementById("send").addEventListener("click", () => {
+//         const msg = document.getElementById("msg").value;
+//         socket.send(msg);
+//     });
+// }

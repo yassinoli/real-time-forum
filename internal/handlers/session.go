@@ -16,7 +16,7 @@ type FakeSessionInfo struct {
 // This is a temporary function until real authentication is implemented
 func FakeSession() FakeSessionInfo {
 	// Seed random number generator
-	rand.Seed(time.Now().UnixNano())
+	(time.Now().UnixNano())
 
 	// List of fake usernames for testing
 	usernames := []string{
