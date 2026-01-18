@@ -100,11 +100,14 @@ async function submitPost(form) {
         // Reload posts instead of full page reload
         if (typeof loadPosts === 'function') {
             await loadPosts()
-        } else {
-            window.location.reload()
+            console.log('------------');
+            
+        // } else {
+        //     window.location.reload()
         }
     } catch (error) {
         console.error('Error creating post:', error)
         alert('Failed to create post: ' + error.message)
     }
 }
+
