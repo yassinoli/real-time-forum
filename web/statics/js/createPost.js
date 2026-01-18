@@ -1,3 +1,4 @@
+import { loadPosts } from "./home.js"
 export function creatPost() {
     let container = document.createElement('div')
     container.className = 'creatPostDiv'
@@ -96,15 +97,15 @@ async function submitPost(form) {
         const tryt = document.querySelector('.try_ws')
         if (main) main.style.visibility = 'visible'
         if (tryt) tryt.style.visibility = 'visible'
-
+         loadPosts()
         // Reload posts instead of full page reload
-        if (typeof loadPosts === 'function') {
-            await loadPosts()
+        // if (typeof loadPosts === 'function') {
+            
             console.log('------------');
             
         // } else {
         //     window.location.reload()
-        }
+        // }
     } catch (error) {
         console.error('Error creating post:', error)
         alert('Failed to create post: ' + error.message)

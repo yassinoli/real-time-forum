@@ -257,7 +257,7 @@ function displaCategories() {
 }
 
 // Load posts from API with optional category filter
-async function loadPosts(category = '') {
+export async function loadPosts(category = '') {
     try {
         console.log('Loading posts...')
         const response = await fetch('/api/posts')
