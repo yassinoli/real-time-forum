@@ -52,6 +52,7 @@ func main() {
 	http.HandleFunc("/api/posts/create", app.CreatePostHandler)
 	http.HandleFunc("/api/comments/add", app.AddCommentHandler)
 	http.HandleFunc("/api/header-check",app.GetHeader)
+	http.HandleFunc("/api/logout",app.Logout)
 
 	// WebSocket
 	http.HandleFunc("/ws", websocket.WebsocketHandler)

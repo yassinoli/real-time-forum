@@ -11,7 +11,7 @@ type FakeSessionInfo struct {
 	Username string
 	LoggedIn bool
 }
-
+var lgdIn = true
 // FakeSession returns random user information for testing purposes
 // This is a temporary function until real authentication is implemented
 func FakeSession() FakeSessionInfo {
@@ -51,6 +51,6 @@ func FakeSession() FakeSessionInfo {
 	return FakeSessionInfo{
 		UserID:   userID,
 		Username: username,
-		LoggedIn: true,
+		LoggedIn: lgdIn,
 	}
 }

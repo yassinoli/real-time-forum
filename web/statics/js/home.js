@@ -295,7 +295,7 @@ function escapeHtml(text) {
     return div.innerHTML
 }
 
-async function headerCheck() {
+async function headerCheck() {    
     try {
         const response = await fetch('/api/header-check')
 
@@ -315,7 +315,9 @@ async function headerCheck() {
     }
 }
 
+
 headerCheck().then(data => {
+    
     const creatpst = document.querySelector('.createPost')
     const lgn = document.querySelector('.LoginH')
      const rgst = document.querySelector('.Registerh')
@@ -334,40 +336,31 @@ headerCheck().then(data => {
 })
 
 
+const lgtButton = document.querySelector('.LogoutH')
+lgtButton.addEventListener('click', logOut)
 
-/*------------web socket---------------------*/
-// const socket = new WebSocket("ws://localhost:8080/ws");
+async function logOut() {
 
-// socket.onopen = () => {
-//     console.log("Connected to WebSocket");
-// };
+    try {
+        const resp = await fetch('/api/logout', {
+            method: 'POST',
+            credentials: 'include', //  for cookies
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
 
-// socket.onmessage = (event) => {
-//     try {
-//         const data = JSON.parse(event.data)
-//         if (data.type === 'new_post') {
-//             // Reload posts when a new post is created
-//             loadPosts()
-//         } else if (data.type === 'new_comment') {
-//             // Reload comments for the specific post
-//             const postId = data.postId
-//             const commentsContainer = document.getElementById(`comments-${postId}`)
-//             if (commentsContainer && commentsContainer.style.display !== 'none') {
-//                 loadComments(postId)
-//             }
-//         }
-//     } catch (error) {
-//         console.error('Error processing WebSocket message:', error)
-//     }
-// };
+        if (!resp.ok) {
+            throw new Error(`HTTP ${resp.status}`)
+        }
+        
+        
+        const data = await resp.json()
 
-// socket.onclose = () => {
-//     console.log("Connection closed");
-// };
-
-// if (document.getElementById("send")) {
-//     document.getElementById("send").addEventListener("click", () => {
-//         const msg = document.getElementById("msg").value;
-//         socket.send(msg);
-//     });
-// }
+        if (data.loggedIn === false) {
+            document.querySelector('.contentWrapper')?.remove()
+        }
+    } catch (err) {
+        console.error('Failed to logout:', err)
+    }
+}

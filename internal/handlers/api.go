@@ -273,3 +273,33 @@ func (app *App) GetHeader(w http.ResponseWriter, r *http.Request) {
         "heading": user.LoggedIn,
     })
 }
+
+func (app *App) Logout(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w)
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	lgdIn = false
+	// Clear the session cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session_token", // must match login cookie name
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]bool{
+		"loggedIn": false,
+	})
+}
