@@ -4,10 +4,12 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"real-time-forum/internal/handlers"
 	"real-time-forum/internal/models"
-	"real-time-forum/internal/websocket"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -36,27 +38,43 @@ func main() {
 		DB: db,
 	}
 
-	// Serve static files
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/" {
-			http.ServeFile(w, r, "./web/index.html")
-		} else {
-			handlers.ServeStatic(w, r)
-		}
-	})
-	http.HandleFunc("/statics/", handlers.ServeStatic)
+	// Start WebSocket broadcast goroutine
+	go handlers.Broadcast(db)
 
 	// API routes
 	http.HandleFunc("/api/posts", app.GetPostsHandler)
 	http.HandleFunc("/api/post", app.GetPostHandler)
 	http.HandleFunc("/api/posts/create", app.CreatePostHandler)
 	http.HandleFunc("/api/comments/add", app.AddCommentHandler)
-	http.HandleFunc("/api/header-check",app.GetHeader)
-	http.HandleFunc("/api/logout",app.Logout)
+	http.HandleFunc("/api/header-check", app.GetHeader)
+	http.HandleFunc("/api/logout", app.Logout)
 
-	// WebSocket
-	http.HandleFunc("/ws", websocket.WebsocketHandler)
-
+	// Page routes
+	http.HandleFunc("/register", app.HandleRegister)
+	http.HandleFunc("/login", app.HandleLogin)
+	http.HandleFunc("/logout", app.LogoutHandler)
+	http.HandleFunc("/statics/", handlers.ServeStatic)
+	http.HandleFunc("/ws/chat", app.WebsocketHandler)
+	
+	// Serve index.html for all SPA routes
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		// Check if it's a static file request
+		if strings.HasPrefix(r.URL.Path, "/statics/") {
+			handlers.ServeStatic(w, r)
+			return
+		}
+		
+		// Serve index.html for all SPA routes
+		wd, err := os.Getwd()
+		if err != nil {
+			fmt.Println("error getting working directory: ", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+		indexPath := filepath.Join(wd, "web", "index.html")
+		http.ServeFile(w, r, indexPath)
+	})
+	
 	fmt.Println("Server started. Go to http://localhost:8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		fmt.Println("error while starting the server")

@@ -1,18 +1,15 @@
 import { creatPost } from "./createPost.js"
 
-let main = document.querySelector('main')
-let tryt = document.querySelector('.try_ws')
+let main = null
+let tryt = null
+let isLoading = false
+let currentOffset = 0
+let postsPerPage = 20
+let allPosts = []
+let currentCategory = ''
 
 // Initialize page when DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        initializePage()
-    })
-} else {
-    initializePage()
-}
-
-function initializePage() {
+export function initializePage() {
     main = document.querySelector('main')
     tryt = document.querySelector('.try_ws')
     
@@ -23,19 +20,75 @@ function initializePage() {
     
     displaCategories()
     loadPosts()
+    setupInfiniteScroll()
+}
+
+// Setup infinite scroll listener
+function setupInfiniteScroll() {
+    window.addEventListener('scroll', () => {
+        if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 500) {
+            if (!isLoading) {
+                loadMorePosts()
+            }
+        }
+    })
+}
+
+// Load more posts (pagination)
+async function loadMorePosts() {
+    if (isLoading) return
+    isLoading = true
+    
+    try {
+        const response = await fetch(`/api/posts?offset=${currentOffset}&limit=${postsPerPage}`, {
+            credentials: 'include'
+        })
+        
+        if (!response.ok) {
+            throw new Error(`Failed to load posts: ${response.status}`)
+        }
+        
+        const posts = await response.json()
+        
+        if (!posts || posts.length === 0) {
+            isLoading = false
+            return
+        }
+        
+        // Filter by category if needed
+        let filteredPosts = posts
+        if (currentCategory) {
+            filteredPosts = posts.filter(post => 
+                post.categories && post.categories.includes(currentCategory)
+            )
+        }
+        
+        // Append new posts to existing list
+        filteredPosts.forEach(post => {
+            displayPost(post)
+            allPosts.push(post)
+        })
+        
+        currentOffset += postsPerPage
+        console.log(`Loaded ${filteredPosts.length} more posts, total: ${allPosts.length}`)
+    } catch (error) {
+        console.error('Error loading more posts:', error)
+    } finally {
+        isLoading = false
+    }
 }
 
 // Display posts in the feed
 function displayPosts(posts) {
+    const main = document.querySelector('main')
     if (!main) {
-        main = document.querySelector('main')
-        if (!main) {
-            console.error('Main element not found in displayPosts')
-            return
-        }
+        console.error('Main element not found in displayPosts')
+        return
     }
     
     main.innerHTML = '' // Clear existing posts
+    allPosts = [] // Reset all posts
+    currentOffset = 0 // Reset offset
     
     if (!posts || posts.length === 0) {
         main.innerHTML = '<p>No posts yet. Be the first to create one!</p>'
@@ -45,7 +98,11 @@ function displayPosts(posts) {
     console.log('Displaying', posts.length, 'posts')
     posts.forEach(post => {
         displayPost(post)
+        allPosts.push(post)
     })
+    
+    // Update offset for next load
+    currentOffset = posts.length
 }
 
 // Display a single post
@@ -211,13 +268,19 @@ async function addComment(postId, formData) {
     }
 }
 
-// Create post button handler
-let postCreat = document.querySelector('.createPost')
-postCreat.addEventListener('click', () => {
-    main.style.visibility = 'hidden'
-    if (tryt) tryt.style.visibility = 'hidden'
-    creatPost()
-})
+// Create post button handler - will be set up in router
+export function setupCreatePostButton() {
+    const postCreat = document.querySelector('.createPost')
+    if (postCreat) {
+        postCreat.addEventListener('click', () => {
+            const main = document.querySelector('main')
+            if (main) main.style.visibility = 'hidden'
+            const tryt = document.querySelector('.try_ws')
+            if (tryt) tryt.style.visibility = 'hidden'
+            creatPost()
+        })
+    }
+}
 
 // Close create post handler
 document.addEventListener('click', (e) => {
@@ -252,6 +315,7 @@ function displaCategories() {
     const categoryFilter = document.getElementById('categoryFilter')
     categoryFilter.addEventListener('change', async (e) => {
         const selectedCategory = e.target.value
+        currentCategory = selectedCategory
         await loadPosts(selectedCategory)
     })
 }
@@ -259,17 +323,27 @@ function displaCategories() {
 // Load posts from API with optional category filter
 export async function loadPosts(category = '') {
     try {
-        console.log('Loading posts...')
-        const response = await fetch('/api/posts')
+        currentCategory = category
+        console.log('Loading initial posts...')
+        const response = await fetch(`/api/posts?offset=0&limit=${postsPerPage}`, {
+            credentials: 'include'
+        })
         
         if (!response.ok) {
+            if (response.status === 401) {
+                // Not authenticated, redirect to home
+                window.history.pushState({}, "", "/")
+                const { HandleRouting } = await import('./router.js')
+                HandleRouting()
+                return
+            }
             const errorText = await response.text()
             console.error('Failed to load posts:', response.status, errorText)
             throw new Error(`Failed to load posts: ${response.status} ${errorText}`)
         }
         
         const posts = await response.json()
-        console.log(posts.length, 'posts loaded')
+        console.log(posts.length, 'initial posts loaded')
         
         // Filter by category if specified
         let filteredPosts = posts
@@ -282,6 +356,7 @@ export async function loadPosts(category = '') {
         displayPosts(filteredPosts)
     } catch (error) {
         console.error('Error loading posts:', error)
+        const main = document.querySelector('main')
         if (main) {
             main.innerHTML = `<p>Error loading posts: ${error.message}. Please try again later.</p>`
         }
@@ -324,20 +399,20 @@ headerCheck().then(data => {
           const lgout = document.querySelector('.LogoutH')
 
    
-    if (data.heading==true) {
-        lgn.style.display = 'none'
-        rgst.style.display = 'none'
-    }
+    // if (data.heading==true) {
+    //     lgn?.style.display = 'none'
+    //     rgst?.style.display = 'none'
+    // }
 
-    if (data.heading==false) {
-        creatpst.style.display = 'none'
-        lgout.style.display = 'none'
-    }
+    // if (data.heading==false) {
+    //     creatpst?.style.display = 'none'
+    //     lgout?.style.display = 'none'
+    // }
 })
 
 
 const lgtButton = document.querySelector('.LogoutH')
-lgtButton.addEventListener('click', logOut)
+lgtButton?.addEventListener('click', logOut)
 
 async function logOut() {
 

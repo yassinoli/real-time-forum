@@ -10,7 +10,6 @@ import (
 	"real-time-forum/internal/helpers"
 	"real-time-forum/internal/models"
 	"strconv"
-	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -33,15 +32,14 @@ func (app *App) PostViewerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// get post ID from query parameters
-	idstr := r.URL.Query().Get("id")
-	postID, err := strconv.Atoi(idstr)
-	if err != nil {
+	postID := r.URL.Query().Get("id")
+	if postID == "" {
 		RenderErrorPage(app, w, r, errors.New("invalid post ID"), 400)
 		return
 	}
 
 	// check user session
-	userID, username, loggedIn := 1, "yassin", true //session(app, w, r)
+	userID, username, loggedIn := "1", "yassin", true //session(app, w, r)
 
 	// get post with comments from the database
 	post, err := GetPostWithComments(app, postID, userID)
@@ -72,67 +70,36 @@ func (app *App) PostViewerHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // Get post along with its comments from the database
-func GetPostWithComments(app *App, postID, userID int) (models.Post, error) {
-	var post models.Post
-
-	row := app.DB.QueryRow(`
-		SELECT p.id, u.username, p.title, p.content, p.created_at
-		FROM posts p
-		JOIN users u ON p.user_id = u.id
-		WHERE p.id = ?`, postID)
-
-	var createdAt time.Time
-	err := row.Scan(&post.PostID, &post.Username, &post.Title, &post.Content, &createdAt)
+func GetPostWithComments(app *App, postID, userID string) (models.Post, error) {
+	post, err := helpers.GetPostByID(app.DB, postID)
 	if err != nil {
-		return post, err
+		return models.Post{}, err
 	}
 
-	post.CreatedAt = createdAt.Format("Jan 02, 2006 15:04")
-	post.CommentCount, _ = helpers.CountCommentsForPost(app.DB, postID)
-
-	// Fetch categories
-	catRows, err := app.DB.Query(`
-        SELECT c.category
-        FROM categories c
-        JOIN post_categories pc ON c.id = pc.categories_id
-        WHERE pc.post_id = ?`, postID)
-	if err != nil {
-		return post, err
-	}
-	defer catRows.Close()
-
-	for catRows.Next() {
-		var category string
-		if err := catRows.Scan(&category); err != nil {
-			return post, err
-		}
-		post.Categories = append(post.Categories, category)
+	// Convert PostWithComments to models.Post
+	result := models.Post{
+		PostID:       post.PostID,
+		UserID:       post.UserID,
+		Username:     post.Username,
+		Title:        post.Title,
+		Content:      post.Content,
+		CreatedAt:    post.CreatedAt,
+		Categories:   post.Categories,
+		CommentCount: post.CommentCount,
 	}
 
-	// Fetch comments
-	rows, err := app.DB.Query(`
-		SELECT c.id, u.username, u.id, c.content, c.created_at
-		FROM comments c
-		JOIN users u ON c.user_id = u.id
-		WHERE c.post_id = ?`, postID)
-	if err != nil {
-		return post, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var timecomment time.Time
-		var comment models.Comment
-		if err := rows.Scan(&comment.CommentID, &comment.Username, &comment.UserID, &comment.Content, &timecomment); err != nil {
-			return post, err
-		}
-
-		comment.Timed = timecomment.Format("Jan 02, 2006 15:04")
-
-		post.Comments = append(post.Comments, comment)
+	// Convert comments
+	for _, c := range post.Comments {
+		result.Comments = append(result.Comments, models.Comment{
+			CommentID: c.CommentID,
+			UserID:    c.UserID,
+			Username:  c.Username,
+			Content:   c.Content,
+			Timed:     c.CreatedAt,
+		})
 	}
 
-	return post, nil
+	return result, nil
 }
 
 // AddCommentHandler has been moved to api.go for JSON API responses
@@ -176,8 +143,7 @@ func (app *App) LikeCommentHandler(w http.ResponseWriter, r *http.Request) {
 	commentIDStr := r.FormValue("comment_id")
 	valueStr := r.FormValue("value")
 
-	commentID, err := strconv.Atoi(commentIDStr)
-	if err != nil {
+	if commentIDStr == "" {
 		RenderErrorPage(app, w, r, errors.New("invalid comment ID"), 400)
 		return
 	}
@@ -188,24 +154,24 @@ func (app *App) LikeCommentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, _, _ := 1, 0, 0 //SessionChecker(app, w, r)
+	userID := "1" //SessionChecker(app, w, r)
 
-	if userID == 0 {
+	if userID == "" {
 
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
 
 	// Get post_id for this comment from the DB
-	var postID int
-	err = app.DB.QueryRow("SELECT post_id FROM comments WHERE id = ?", commentID).Scan(&postID)
+	var postID string
+	err = app.DB.QueryRow("SELECT post_id FROM comment WHERE id = ?", commentIDStr).Scan(&postID)
 	if err != nil {
 		log.Println("Error fetching post_id for comment:", err)
 		RenderErrorPage(app, w, r, errors.New("comment not found"), 404)
 		return
 	}
 
-	http.Redirect(w, r, fmt.Sprintf("/post-viewer?id=%d#comment-%d", postID, commentID), http.StatusSeeOther)
+	http.Redirect(w, r, fmt.Sprintf("/post-viewer?id=%s#comment-%s", postID, commentIDStr), http.StatusSeeOther)
 }
 
 func CheckComment(content string) string {

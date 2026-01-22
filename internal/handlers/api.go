@@ -17,7 +17,7 @@ func setCORSHeaders(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 }
 
-// GetPostsHandler returns all posts as JSON
+// GetPostsHandler returns paginated posts as JSON
 func (app *App) GetPostsHandler(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w)
 
@@ -31,7 +31,30 @@ func (app *App) GetPostsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	posts, err := helpers.GetAllPosts(app.DB)
+	// Check authentication
+	_, _, err := helpers.GetUserFromSession(r, app.DB)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// Parse pagination parameters
+	offset := 0
+	limit := 20 // Default to 20 posts per page
+
+	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
+		if parsedOffset, err := strconv.Atoi(offsetStr); err == nil && parsedOffset >= 0 {
+			offset = parsedOffset
+		}
+	}
+
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 && parsedLimit <= 100 {
+			limit = parsedLimit
+		}
+	}
+
+	posts, err := helpers.GetAllPosts(app.DB, offset, limit)
 	if err != nil {
 		fmt.Printf("Error fetching posts: %v\n", err)
 		http.Error(w, fmt.Sprintf("Error fetching posts: %v", err), http.StatusInternalServerError)
@@ -56,21 +79,22 @@ func (app *App) GetPostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check authentication
+	_, _, err := helpers.GetUserFromSession(r, app.DB)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	postIDStr := r.URL.Query().Get("id")
 	if postIDStr == "" {
 		http.Error(w, "Post ID is required", http.StatusBadRequest)
 		return
 	}
 
-	postID, err := strconv.Atoi(postIDStr)
+	post, err := helpers.GetPostByID(app.DB, postIDStr)
 	if err != nil {
-		http.Error(w, "Invalid post ID", http.StatusBadRequest)
-		return
-	}
-
-	post, err := helpers.GetPostByID(app.DB, postID)
-	if err != nil {
-		fmt.Printf("Error fetching post %d: %v\n", postID, err)
+		fmt.Printf("Error fetching post %s: %v\n", postIDStr, err)
 		http.Error(w, fmt.Sprintf("Post not found: %v", err), http.StatusNotFound)
 		return
 	}
@@ -126,20 +150,12 @@ func (app *App) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get fake session for testing
-	session := FakeSession()
-	userID := session.UserID
-
-	// Ensure user exists in database
-	var err error
-	userID, err = helpers.GetOrCreateFakeUser(app.DB, userID, session.Username)
+	// Get user from session
+	userID, _, err := helpers.GetUserFromSession(r, app.DB)
 	if err != nil {
-		fmt.Printf("Error ensuring user exists: %v\n", err)
-		http.Error(w, fmt.Sprintf("Error ensuring user exists: %v", err), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
-
-	fmt.Printf("User ID: %d, Username: %s\n", userID, session.Username)
 
 	// Parse categories
 	var categoryIDs []int
@@ -167,10 +183,10 @@ func (app *App) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Printf("Post created successfully with ID: %d\n", postID)
+	fmt.Printf("Post created successfully with ID: %s\n", postID)
 
 	// Return the created post
-	post, err := helpers.GetPostByID(app.DB, int(postID))
+	post, err := helpers.GetPostByID(app.DB, postID)
 	if err != nil {
 		fmt.Printf("Error fetching created post: %v\n", err)
 		http.Error(w, fmt.Sprintf("Error fetching created post: %v", err), http.StatusInternalServerError)
@@ -218,32 +234,22 @@ func (app *App) AddCommentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	postID, err := strconv.Atoi(postIDStr)
+	// Get user from session
+	userID, _, err := helpers.GetUserFromSession(r, app.DB)
 	if err != nil {
-		http.Error(w, "Invalid post ID", http.StatusBadRequest)
-		return
-	}
-
-	// Get fake session for testing
-	session := FakeSession()
-	userID := session.UserID
-
-	// Ensure user exists in database
-	userID, err = helpers.GetOrCreateFakeUser(app.DB, userID, session.Username)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Error ensuring user exists: %v", err), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
 	// Add comment
-	err = helpers.AddComment(app.DB, userID, &postID, content)
+	err = helpers.AddComment(app.DB, userID, postIDStr, content)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error adding comment: %v", err), http.StatusBadRequest)
 		return
 	}
 
 	// Return updated post with comments
-	post, err := helpers.GetPostByID(app.DB, postID)
+	post, err := helpers.GetPostByID(app.DB, postIDStr)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error fetching post: %v", err), http.StatusInternalServerError)
 		return
@@ -254,24 +260,34 @@ func (app *App) AddCommentHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *App) GetHeader(w http.ResponseWriter, r *http.Request) {
-    setCORSHeaders(w)
+	setCORSHeaders(w)
 
-    if r.Method == http.MethodOptions {
-        w.WriteHeader(http.StatusNoContent)
-        return
-    }
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
 
-    if r.Method != http.MethodGet {
-        http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-        return
-    }
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
 
-    user := FakeSession()
+	// Check if user is logged in and get nickname
+	_, nickname, err := helpers.GetUserFromSession(r, app.DB)
+	loggedIn := err == nil
 
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(map[string]bool{
-        "heading": user.LoggedIn,
-    })
+	w.Header().Set("Content-Type", "application/json")
+	if loggedIn {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"heading":  loggedIn,
+			"nickname": nickname,
+		})
+	} else {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"heading":  loggedIn,
+			"nickname": "",
+		})
+	}
 }
 
 func (app *App) Logout(w http.ResponseWriter, r *http.Request) {
@@ -287,10 +303,18 @@ func (app *App) Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	lgdIn = false
+	// Delete session from database
+	cookie, err := r.Cookie("session")
+	if err == nil {
+		_, err = app.DB.Exec(`DELETE FROM session WHERE id = ?`, cookie.Value)
+		if err != nil {
+			fmt.Printf("Error deleting session: %v\n", err)
+		}
+	}
+
 	// Clear the session cookie
 	http.SetCookie(w, &http.Cookie{
-		Name:     "session_token", // must match login cookie name
+		Name:     "session",
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,

@@ -1,20 +1,38 @@
-import { generateRegisterPage } from "./pages/registerPage.js"
+import { HandleRouting } from './router.js'
 
-generateRegisterPage()
-
-const handleregisterFront = async () => {
+export const handleregisterFront = async () => {
     const userData = {}
 
-    const gender = document.querySelector('input[name="gender"]:checked');
-    userData.gender = gender.value;
+    const gender = document.querySelector('input[name="gender"]:checked')
+    if (!gender) {
+        const errorDiv = document.querySelector(".input-error")
+        if (errorDiv) errorDiv.textContent = "Please select a gender"
+        return
+    }
+    userData.gender = gender.value
 
-    const inputs = document.querySelectorAll(".form-row")
-    inputs.forEach(el => {
-        userData[el.children[1].id] = el.children[1].value
-    })
+    const firstName = document.getElementById("firstName")?.value
+    const lastName = document.getElementById("lastName")?.value
+    const nickName = document.getElementById("nickName")?.value
+    const age = document.getElementById("age")?.value
+    const email = document.getElementById("email")?.value
+    const password = document.getElementById("password")?.value
 
-    userData.age = Number(userData.age)
+    if (!firstName || !lastName || !nickName || !age || !email || !password) {
+        const errorDiv = document.querySelector(".input-error")
+        if (errorDiv) errorDiv.textContent = "Please fill all fields"
+        return
+    }
 
+    userData.firstName = firstName
+    userData.lastName = lastName
+    userData.nickname = nickName
+    userData.age = Number(age)
+    userData.email = email
+    userData.password = password
+
+    const errorDiv = document.querySelector(".input-error")
+    
     try {
         const resp = await fetch("/register", {
             method: "POST",
@@ -22,41 +40,23 @@ const handleregisterFront = async () => {
             body: JSON.stringify(userData)
         })
 
-        if (!resp.ok) throw new Error("failed to send data")
-
         const res = await resp.json()
 
-        const ws = new WebSocket("ws://localhost:8080/ws");
+        if (!resp.ok || res.code !== 200) {
+            if (errorDiv) {
+                errorDiv.textContent = res.error || res.message || "Registration failed"
+            }
+            return
+        }
 
-        ws.onopen = () => {
-            console.log("WebSocket connecté");
-            ws.send("hello server");
-        };
-
-        ws.onmessage = (event) => {
-            console.log("message reçu du serveur:", event.data);
-        };
-
-        ws.onerror = (err) => {
-            console.error("WebSocket error:", err);
-        };
-
-        ws.onclose = () => {
-            console.log("WebSocket fermé");
-        };
-
-
-        // document.body.innerHTML = `
-        //     <div id="message-container">
-        //     <h1>${res.code}</h1>
-        //     <p>${res.message}</p>
-        //     </div>
-        // `
+        // Redirect to posts after successful registration
+        window.history.pushState({}, "", "/posts")
+        HandleRouting()
 
     } catch (err) {
         console.error(err)
+        if (errorDiv) {
+            errorDiv.textContent = "An error occurred. Please try again."
+        }
     }
-
 }
-
-document.getElementById("submit-btn").addEventListener("click", handleregisterFront)

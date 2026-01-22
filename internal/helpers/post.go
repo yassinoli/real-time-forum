@@ -5,45 +5,48 @@ import (
 	"errors"
 	"strings"
 	"time"
+
+	"github.com/gofrs/uuid"
 )
 
 // AddPost adds a new post to the database
-func AddPost(db *sql.DB, userID int, title, content string, categoryIDs []int) (int64, error) {
+func AddPost(db *sql.DB, userID string, title, content string, categoryIDs []int) (string, error) {
 	title = strings.TrimSpace(title)
 	content = strings.TrimSpace(content)
 
 	if title == "" {
-		return 0, errors.New("title cannot be empty")
+		return "", errors.New("title cannot be empty")
 	}
 	if content == "" {
-		return 0, errors.New("content cannot be empty")
+		return "", errors.New("content cannot be empty")
 	}
 	if len(title) > 200 {
-		return 0, errors.New("title too long")
+		return "", errors.New("title too long")
 	}
 	if len(content) > 5000 {
-		return 0, errors.New("content too long")
+		return "", errors.New("content too long")
+	}
+
+	// Generate UUID for post
+	postID, err := uuid.NewV4()
+	if err != nil {
+		return "", err
 	}
 
 	// Start transaction
 	tx, err := db.Begin()
 	if err != nil {
-		return 0, err
+		return "", err
 	}
 	defer tx.Rollback()
 
 	// Insert post
-	result, err := tx.Exec(`
-		INSERT INTO post (user_id, title, content)
-		VALUES (?, ?, ?)
-	`, userID, title, content)
+	_, err = tx.Exec(`
+		INSERT INTO post (id, user_id, title, content)
+		VALUES (?, ?, ?, ?)
+	`, postID.String(), userID, title, content)
 	if err != nil {
-		return 0, err
-	}
-
-	postID, err := result.LastInsertId()
-	if err != nil {
-		return 0, err
+		return "", err
 	}
 
 	// Insert categories
@@ -51,18 +54,18 @@ func AddPost(db *sql.DB, userID int, title, content string, categoryIDs []int) (
 		_, err = tx.Exec(`
 			INSERT INTO post_category (post_id, category_id)
 			VALUES (?, ?)
-		`, postID, catID)
+		`, postID.String(), catID)
 		if err != nil {
-			return 0, err
+			return "", err
 		}
 	}
 
 	// Commit transaction
 	if err = tx.Commit(); err != nil {
-		return 0, err
+		return "", err
 	}
 
-	return postID, nil
+	return postID.String(), nil
 }
 
 // GetCategoryIDByName gets category ID by name, creates if doesn't exist
@@ -95,7 +98,7 @@ func GetCategoryIDByName(db *sql.DB, categoryName string) (int, error) {
 }
 
 // GetPostByID gets a single post with its comments
-func GetPostByID(db *sql.DB, postID int) (PostWithComments, error) {
+func GetPostByID(db *sql.DB, postID string) (PostWithComments, error) {
 	var post PostWithComments
 
 	// Get post details
@@ -162,8 +165,8 @@ func GetPostByID(db *sql.DB, postID int) (PostWithComments, error) {
 	return post, nil
 }
 
-// GetAllPosts gets all posts ordered by creation date (newest first)
-func GetAllPosts(db *sql.DB) ([]PostWithComments, error) {
+// GetAllPosts gets paginated posts ordered by creation date (newest first)
+func GetAllPosts(db *sql.DB, offset, limit int) ([]PostWithComments, error) {
 	var posts []PostWithComments
 
 	rows, err := db.Query(`
@@ -171,7 +174,8 @@ func GetAllPosts(db *sql.DB) ([]PostWithComments, error) {
 		FROM post p
 		JOIN user u ON p.user_id = u.id
 		ORDER BY p.created_at DESC
-	`)
+		LIMIT ? OFFSET ?
+	`, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -219,8 +223,8 @@ func GetAllPosts(db *sql.DB) ([]PostWithComments, error) {
 
 // PostWithComments represents a post with its comments
 type PostWithComments struct {
-	PostID       int                 `json:"postId"`
-	UserID       int                 `json:"userId"`
+	PostID       string              `json:"postId"`
+	UserID       string              `json:"userId"`
 	Username     string              `json:"username"`
 	Title        string              `json:"title"`
 	Content      string              `json:"content"`
@@ -232,8 +236,8 @@ type PostWithComments struct {
 
 // CommentWithUser represents a comment with user info
 type CommentWithUser struct {
-	CommentID int    `json:"commentId"`
-	UserID    int    `json:"userId"`
+	CommentID string `json:"commentId"`
+	UserID    string `json:"userId"`
 	Username  string `json:"username"`
 	Content   string `json:"content"`
 	CreatedAt string `json:"createdAt"`

@@ -97,15 +97,9 @@ async function submitPost(form) {
         const tryt = document.querySelector('.try_ws')
         if (main) main.style.visibility = 'visible'
         if (tryt) tryt.style.visibility = 'visible'
-         loadPosts()
-        // Reload posts instead of full page reload
-        // if (typeof loadPosts === 'function') {
-            
-            console.log('------------');
-            
-        // } else {
-        //     window.location.reload()
-        // }
+        
+        // Reload posts
+        loadPosts()
     } catch (error) {
         console.error('Error creating post:', error)
         alert('Failed to create post: ' + error.message)
