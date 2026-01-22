@@ -19,24 +19,6 @@ export const postsTemplate = () => {
                     <div class="categorienews"></div>
                 </aside>
                 <main></main>
-                <div class="chat-section">
-                    <div class="user-list-container">
-                        <h3>Users</h3>
-                        <div class="user-list-wrapper"></div>
-                    </div>
-                    <div class="chat-container">
-                        <div id="messages">
-                            <img src="statics/assets/sleep.png" alt="sleep-icon" id="sleep-icon">
-                        </div>
-                        <div id="chat-input">
-                            <textarea 
-                                id="chat-textarea" 
-                                rows="1" 
-                                placeholder="Write a message…"></textarea>
-                            <button id="send-btn">📨</button>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     `
