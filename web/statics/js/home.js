@@ -210,11 +210,14 @@ function displayComments(postId, comments) {
     }
 
     if (comments.length === 0) {
+        let exisrNoComment = document.querySelector('.noComments')
+        if (!exisrNoComment){ 
         const noComments = document.createElement('p')
         noComments.textContent = 'No comments yet. Be the first to comment!'
         noComments.className = 'noComments'
         commentsContainer.insertBefore(noComments, commentsContainer.querySelector('.commentForm'))
         return
+        }
     }
 
     const commentsList = document.createElement('div')
@@ -262,6 +265,7 @@ async function addComment(postId, formData) {
         // Clear form
         const form = document.querySelector(`#comments-${postId} .commentForm`)
         form.reset()
+        document.querySelector('.noComments')?.remove()
     } catch (error) {
         console.error('Error adding comment:', error)
         alert('Failed to add comment. Please try again.')
