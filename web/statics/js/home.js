@@ -347,8 +347,7 @@ export async function loadPosts(category = '') {
         }
         
         const posts = await response.json()
-        console.log(posts.length, 'initial posts loaded')
-        
+      
         // Filter by category if specified
         let filteredPosts = posts
         if (category) {
