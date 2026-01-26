@@ -35,7 +35,7 @@ export const handleLoginFront = async () => {
         if (!resp.ok || res.code !== 200) {
             const errorDiv = document.querySelector(".input-error")
             if (errorDiv) {
-                errorDiv.textContent = res.error?.Error() || res.message || "Login failed"
+                errorDiv.textContent =  "Login failed : inccorect nickName or password " 
             }
             return
         }
