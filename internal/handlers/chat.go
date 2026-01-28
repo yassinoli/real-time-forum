@@ -4,9 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
-	"sort"
 	"time"
 
 	"real-time-forum/internal/models"
@@ -67,7 +65,6 @@ func (a *App) WebsocketHandler(w http.ResponseWriter, r *http.Request) {
 
 		var msg models.Message
 		if err := json.Unmarshal(payload, &msg); err != nil {
-			log.Printf("Error unmarshaling message: %v, payload: %s", err, string(payload))
 			continue
 		}
 
@@ -89,6 +86,7 @@ func Broadcast(db *sql.DB) {
 
 			rows, err := db.Query(`SELECT nickname, id FROM user WHERE id != ?`, client.ID)
 			if err != nil {
+				fmt.Println(err)
 				continue
 			}
 
@@ -98,10 +96,10 @@ func Broadcast(db *sql.DB) {
 				var u models.OtherClient
 				var id string
 				if err := rows.Scan(&u.NickName, &id); err != nil {
+					fmt.Println(err)
 					continue
 				}
 
-				// Get last message time, default to zero time if no messages
 				err := db.QueryRow(`
 				SELECT created_at
 				FROM private_message
@@ -110,34 +108,28 @@ func Broadcast(db *sql.DB) {
 				ORDER BY created_at DESC
 				LIMIT 1
 				`, client.ID, id, client.ID, id).Scan(&u.LastChat)
-				if err != nil {
-					// No messages yet, LastChat will be zero time
-					u.LastChat = time.Time{}
+				if err != nil && err != sql.ErrNoRows {
+					fmt.Println(err)
+					continue
+				}
+
+				err = db.QueryRow(`
+    			SELECT COUNT(*)
+    			FROM private_message
+    			WHERE sender_id = ?
+      			AND receiver_id = ?
+     			AND is_read = FALSE
+				`, id, client.ID).Scan(&u.Pending_Message)
+				if err != nil && err != sql.ErrNoRows {
+					fmt.Println(err)
+					continue
 				}
 
 				_, u.Online = clients[u.NickName]
 				users = append(users, u)
 			}
+
 			rows.Close()
-			
-			// Sort users: first by last message (most recent first), then alphabetically for users with no messages
-			sort.Slice(users, func(i, j int) bool {
-				aHasChat := !users[i].LastChat.IsZero()
-				bHasChat := !users[j].LastChat.IsZero()
-				
-				if aHasChat && !bHasChat {
-					return true // i has chat, j doesn't - i comes first
-				}
-				if !aHasChat && bHasChat {
-					return false // j has chat, i doesn't - j comes first
-				}
-				if aHasChat && bHasChat {
-					// Both have chats - sort by most recent (descending)
-					return users[i].LastChat.After(users[j].LastChat)
-				}
-				// Neither has chat - sort alphabetically
-				return users[i].NickName < users[j].NickName
-			})
 
 			client.Ws.WriteJSON(map[string]any{
 				"event":    "init",
@@ -157,43 +149,33 @@ func Broadcast(db *sql.DB) {
 			}
 
 		case msg := <-broadcast:
-		
 
-			// Handle message loading requests
-			if msg.Type == "load_first" || msg.Type == "load_more" {
-				// Get offset from message (0 for initial load, then increments)
-				offset := msg.Offset
-				if offset < 0 {
-					offset = 0
-				}
-
-				// Determine limit: 10 for first load, 20 for subsequent loads
-				limit := 10
-				if offset > 0 {
-					limit = 20
-				}
-
-				// Get user IDs from nicknames
-				var senderID, receiverID string
-				err := db.QueryRow(`SELECT id FROM user WHERE nickname = ?`, msg.Sender).Scan(&senderID)
+			if msg.Type == "load_history" {
+				// set the olds messages of the two users as "read"
+				_, err := db.Exec(`
+				UPDATE private_message
+				SET is_read = TRUE 
+				WHERE sender_id = (SELECT id FROM user WHERE nickname = ?)
+				AND receiver_id = (SELECT id FROM user WHERE nickname = ?)
+				`, msg.Receiver, msg.Sender)
 				if err != nil {
-					continue
-				}
-				err = db.QueryRow(`SELECT id FROM user WHERE nickname = ?`, msg.Receiver).Scan(&receiverID)
-				if err != nil {
+					fmt.Println(err)
 					continue
 				}
 
+				// take 10 mesages between two users
 				rows, err := db.Query(`
-					SELECT pm.created_at, pm.content, us.nickname
+					SELECT pm.created_at, pm.content, us.nickname, ur.nickname
 					FROM private_message pm
 					JOIN user us ON us.id = pm.sender_id
-					WHERE (pm.sender_id = ? AND pm.receiver_id = ?)
-					   OR (pm.sender_id = ? AND pm.receiver_id = ?)
+					JOIN user ur ON ur.id = pm.receiver_id
+					WHERE (us.nickname = ? AND ur.nickname = ?)
+					OR (us.nickname = ? AND ur.nickname = ?)
 					ORDER BY pm.created_at DESC
-					LIMIT ? OFFSET ?
-				`, senderID, receiverID, receiverID, senderID, limit, offset)
+					LIMIT 10 OFFSET ?
+				`, msg.Sender, msg.Receiver, msg.Receiver, msg.Sender, msg.Offset)
 				if err != nil {
+					fmt.Println(err)
 					continue
 				}
 
@@ -201,111 +183,41 @@ func Broadcast(db *sql.DB) {
 
 				for rows.Next() {
 					var m models.Message
-					if err := rows.Scan(&m.Time, &m.Content, &m.Sender); err != nil {
+					if err := rows.Scan(&m.Time, &m.Content, &m.Sender, &m.Receiver); err != nil {
 						continue
 					}
-					m.Receiver = msg.Receiver
 					messages = append(messages, m)
 				}
 				rows.Close()
 
-				// Reverse messages to show oldest first
-				for i, j := 0, len(messages)-1; i < j; i, j = i+1, j-1 {
-					messages[i], messages[j] = messages[j], messages[i]
-				}
-
 				if conn, ok := clients[msg.Sender]; ok {
 					conn.WriteJSON(map[string]any{
-						"event":    "load_message",
+						"event":    "history",
 						"messages": messages,
-						"offset":   offset,
-						"limit":   limit,
 					})
 				}
+
 				continue
 			}
 
-			// Handle regular chat messages
-			// Validate message has required fields
-			if msg.Sender == "" || msg.Receiver == "" || msg.Content == "" {
-				log.Printf("Invalid message: missing fields - Sender: %s, Receiver: %s, Content: %s", 
-					msg.Sender, msg.Receiver, msg.Content)
-				continue
-			}
-
-
-			// Save message to database first
-			messageID, err := uuid.NewV4()
-			if err != nil {
-				log.Printf("Error generating UUID: %v", err)
-				continue
-			}
-			
-			var senderID, receiverID string
-			err = db.QueryRow(`SELECT id FROM user WHERE nickname = ?`, msg.Sender).Scan(&senderID)
-			if err != nil {
-				log.Printf("Error finding sender ID for nickname %s: %v", msg.Sender, err)
-				continue
-			}
-			
-			err = db.QueryRow(`SELECT id FROM user WHERE nickname = ?`, msg.Receiver).Scan(&receiverID)
-			if err != nil {
-				log.Printf("Error finding receiver ID for nickname %s: %v", msg.Receiver, err)
-				continue
-			}
-			
-			// Try to get table schema for debugging
-			rows, err := db.Query("PRAGMA table_info(private_message)")
-			if err == nil {
-				log.Printf("Table schema for private_message:")
-				for rows.Next() {
-					var cid int
-					var name, dataType, notNull, defaultValue, pk string
-					rows.Scan(&cid, &name, &dataType, &notNull, &defaultValue, &pk)
-				}
-				rows.Close()
-			}
-			fmt.Println(messageID.String(), senderID, receiverID, msg.Content, msg.Time.Format("2006-01-02 15:04:05"))
-			result, err := db.Exec(`
-				INSERT INTO private_message (id, sender_id, receiver_id, content , created_at )
-				VALUES (?, ?, ?, ?,?)
-			`, messageID.String(), senderID, receiverID, msg.Content, msg.Time.Format("2006-01-02 15:04:05"))
-			
-			if err != nil {
-				log.Printf("Error inserting message into database: %v", err)
-				continue
-			}
-			
-			rowsAffected, _ := result.RowsAffected()
-			log.Printf("Message inserted successfully - Rows affected: %d", rowsAffected)
-
-			// Send to receiver if online
 			if receiverConn, ok := clients[msg.Receiver]; ok {
-				log.Printf("Sending message to receiver %s (online)", msg.Receiver)
-				err := receiverConn.WriteJSON(map[string]any{
+				receiverConn.WriteJSON(map[string]any{
 					"event":   "chat",
 					"message": msg,
 				})
-				if err != nil {
-					log.Printf("Error sending message to receiver: %v", err)
-				}
-			} else {
-				log.Printf("Receiver %s is not online", msg.Receiver)
 			}
 
-			// Also send confirmation to sender (so they see it in their chat)
-			if senderConn, ok := clients[msg.Sender]; ok {
-				log.Printf("Sending message confirmation to sender %s (online)", msg.Sender)
-				err := senderConn.WriteJSON(map[string]any{
-					"event":   "chat",
-					"message": msg,
-				})
-				if err != nil {
-					log.Printf("Error sending message to sender: %v", err)
-				}
-			} else {
-				log.Printf("Sender %s is not online", msg.Sender)
-			}
+			messageID, _ := uuid.NewV4()
+
+			db.Exec(`
+				INSERT INTO private_message (id, sender_id, receiver_id, content)
+				VALUES (
+					?,
+					(SELECT id FROM user WHERE nickname = ?),
+					(SELECT id FROM user WHERE nickname = ?),
+					?
+				)
+			`, messageID.String(), msg.Sender, msg.Receiver, msg.Content)
 
 		case client := <-disconnect:
 			delete(clients, client.NickName)
@@ -315,8 +227,8 @@ func Broadcast(db *sql.DB) {
 				}
 
 				conn.WriteJSON(map[string]any{
-					"event" : "leave",
-					"left" : client.NickName,
+					"event": "leave",
+					"left":  client.NickName,
 				})
 			}
 		}

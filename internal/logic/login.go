@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"regexp"
+	"strings"
 
 	"real-time-forum/internal/helpers"
 	"real-time-forum/internal/models"
@@ -11,9 +13,27 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+var loginEmailRegex = regexp.MustCompile(`^[^\s@]+@[^\s@]+\.[^\s@]+$`)
+
 func getPassowrdAndID(credentials *models.Credentials, resp *models.Resp, db *sql.DB) (string, string) {
 	var storedPassword string
 	var user_id string
+
+	credentials.Nickname = strings.TrimSpace(credentials.Nickname)
+	credentials.Email = strings.TrimSpace(credentials.Email)
+
+	// Basic backend validation for login data
+	if credentials.Password == "" {
+		resp.Error = "password is required"
+		resp.Code = http.StatusBadRequest
+		return "", ""
+	}
+
+	if len(credentials.Password) <= 6 {
+		resp.Error = "password must be longer than 6 characters"
+		resp.Code = http.StatusBadRequest
+		return "", ""
+	}
 
 	if credentials.Nickname != "" {
 		err := db.QueryRow(models.Select_password_by_nickname, credentials.Nickname).Scan(&storedPassword, &user_id)
@@ -31,6 +51,13 @@ func getPassowrdAndID(credentials *models.Credentials, resp *models.Resp, db *sq
 		}
 
 	} else if credentials.Email != "" {
+		// Validate email format if provided
+		if !loginEmailRegex.MatchString(credentials.Email) {
+			resp.Error = "invalid email format"
+			resp.Code = http.StatusBadRequest
+			return "", ""
+		}
+
 		err := db.QueryRow(models.Select_password_by_email, credentials.Email).Scan(&storedPassword, &user_id, &credentials.Nickname)
 
 		if err == sql.ErrNoRows {

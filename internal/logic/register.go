@@ -4,7 +4,9 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
+	"unicode"
 
 	"real-time-forum/internal/helpers"
 	"real-time-forum/internal/models"
@@ -41,6 +43,20 @@ func Register(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	helpers.Respond(w, resp)
 }
 
+func isAlphaOnly(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		if !unicode.IsLetter(r) {
+			return false
+		}
+	}
+	return true
+}
+
+var emailRegex = regexp.MustCompile(`^[^\s@]+@[^\s@]+\.[^\s@]+$`)
+
 func insertUser(user *models.User, resp *models.Resp, db *sql.DB) uuid.UUID {
 	// Validate required fields
 	if user.FirstName == "" || user.LastName == "" || user.Nickname == "" || 
@@ -53,6 +69,33 @@ func insertUser(user *models.User, resp *models.Resp, db *sql.DB) uuid.UUID {
 	if user.Age <= 0 {
 		resp.Code = 400
 		resp.Error = "age must be a valid positive number"
+		return uuid.Nil
+	}
+
+	// Trim spaces
+	user.FirstName = strings.TrimSpace(user.FirstName)
+	user.LastName = strings.TrimSpace(user.LastName)
+	user.Nickname = strings.TrimSpace(user.Nickname)
+	user.Email = strings.TrimSpace(user.Email)
+
+	// Validate first and last names: only letters a-z / A-Z
+	if !isAlphaOnly(user.FirstName) || !isAlphaOnly(user.LastName) {
+		resp.Code = 400
+		resp.Error = "first name and last name must contain only letters a-z"
+		return uuid.Nil
+	}
+
+	// Validate email format
+	if !emailRegex.MatchString(user.Email) {
+		resp.Code = 400
+		resp.Error = "invalid email format"
+		return uuid.Nil
+	}
+
+	// Validate password length (> 6 characters)
+	if len(user.Password) <= 6 {
+		resp.Code = 400
+		resp.Error = "password must be longer than 6 characters"
 		return uuid.Nil
 	}
 

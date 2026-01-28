@@ -3,30 +3,21 @@ package helpers
 import (
 	"fmt"
 	"net/http"
-	"os"
-	"path/filepath"
 	"text/template"
 )
 
 func RenderMainpage(w http.ResponseWriter) {
-	wd, err := os.Getwd()
+	tmpl, err := template.ParseFiles("./web/index.html")
 	if err != nil {
-		fmt.Println("error getting working directory: ", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
-	}
-
-	tmpl, err := template.ParseFiles(filepath.Join(wd, "web", "index.html"))
-	if err != nil {
-		fmt.Println("error while parsing the template: ", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		fmt.Println("error while parsing the template")
+		// render a 500 error
 		return
 	}
 
 	err = tmpl.Execute(w, nil)
 	if err != nil {
-		fmt.Println("error while executing the template: ", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		fmt.Println("error while executing the template")
+		// render a 500 error
 		return
 	}
 }

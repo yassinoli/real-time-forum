@@ -4,12 +4,9 @@ let main = null
 let tryt = null
 let isLoading = false
 let currentOffset = 0
-let postsPerPage = 10
+let postsPerPage = 20
 let allPosts = []
 let currentCategory = ''
-let observer = null
-let sentinelElement = null
-let throttleTimeout = null
 
 // Initialize page when DOM is ready
 export function initializePage() {
@@ -26,75 +23,15 @@ export function initializePage() {
     setupInfiniteScroll()
 }
 
-// Setup infinite scroll with IntersectionObserver and throttling
+// Setup infinite scroll listener
 function setupInfiniteScroll() {
-    // Remove existing observer if any
-    if (observer) {
-        observer.disconnect()
-        observer = null
-    }
-    
-    // Clear throttle timeout if any
-    if (throttleTimeout) {
-        clearTimeout(throttleTimeout)
-        throttleTimeout = null
-    }
-    
-    // Remove existing sentinel if any
-    if (sentinelElement) {
-        sentinelElement.remove()
-    }
-    
-    // Create sentinel element at the bottom of posts
-    sentinelElement = document.createElement('div')
-    sentinelElement.id = 'posts-sentinel'
-    sentinelElement.style.height = '20px'
-    sentinelElement.style.width = '100%'
-    
-    // Append sentinel to main container
-    if (main) {
-        main.appendChild(sentinelElement)
-    }
-    
-    // Throttle function
-    const throttle = (func, delay) => {
-        return (...args) => {
-            if (throttleTimeout) {
-                clearTimeout(throttleTimeout)
+    window.addEventListener('scroll', () => {
+        if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 500) {
+            if (!isLoading) {
+                loadMorePosts()
             }
-            throttleTimeout = setTimeout(() => {
-                func.apply(this, args)
-                throttleTimeout = null
-            }, delay)
         }
-    }
-    
-    // Throttled load more posts function
-    const throttledLoadMore = throttle(() => {
-        if (!isLoading) {
-            loadMorePosts()
-        }
-    }, 1000) 
-    
-    // Create IntersectionObserver
-    const options = {
-        root: null, // viewport
-        rootMargin: '100px', // Start loading 100px before reaching the sentinel
-        threshold: 0.1 // Trigger when 10% of sentinel is visible
-    }
-    
-    observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting && !isLoading) {
-                throttledLoadMore()
-            }
-        })
-    }, options)
-    
-    // Start observing the sentinel element
-    if (sentinelElement) {
-        observer.observe(sentinelElement)
-    }
+    })
 }
 
 // Load more posts (pagination)
@@ -114,10 +51,6 @@ async function loadMorePosts() {
         const posts = await response.json()
         
         if (!posts || posts.length === 0) {
-            // No more posts available, disconnect observer
-            if (observer && sentinelElement) {
-                observer.unobserve(sentinelElement)
-            }
             isLoading = false
             return
         }
@@ -130,14 +63,6 @@ async function loadMorePosts() {
             )
         }
         
-        // If no filtered posts, check if we should stop loading
-        if (filteredPosts.length === 0) {
-            // Still increment offset to avoid infinite loop
-            currentOffset += postsPerPage
-            isLoading = false
-            return
-        }
-        
         // Append new posts to existing list
         filteredPosts.forEach(post => {
             displayPost(post)
@@ -146,12 +71,6 @@ async function loadMorePosts() {
         
         currentOffset += postsPerPage
         console.log(`Loaded ${filteredPosts.length} more posts, total: ${allPosts.length}`)
-        
-        // Ensure sentinel is at the bottom after adding new posts
-        if (sentinelElement && main) {
-            // Move sentinel to the end (appendChild moves existing element)
-            main.appendChild(sentinelElement)
-        }
     } catch (error) {
         console.error('Error loading more posts:', error)
     } finally {
@@ -171,15 +90,8 @@ function displayPosts(posts) {
     allPosts = [] // Reset all posts
     currentOffset = 0 // Reset offset
     
-    // Disconnect observer temporarily
-    if (observer) {
-        observer.disconnect()
-    }
-    
     if (!posts || posts.length === 0) {
         main.innerHTML = '<p>No posts yet. Be the first to create one!</p>'
-        // Re-setup observer even with no posts
-        setupInfiniteScroll()
         return
     }
 
@@ -191,9 +103,6 @@ function displayPosts(posts) {
     
     // Update offset for next load
     currentOffset = posts.length
-    
-    // Re-setup observer after displaying posts
-    setupInfiniteScroll()
 }
 
 // Display a single post
@@ -438,7 +347,8 @@ export async function loadPosts(category = '') {
         }
         
         const posts = await response.json()
-      
+        console.log(posts.length, 'initial posts loaded')
+        
         // Filter by category if specified
         let filteredPosts = posts
         if (category) {

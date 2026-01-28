@@ -1,5 +1,5 @@
 import { homeTemplate, registerTemplate, loginTemplate, chatTemplate, postsTemplate } from './templates.js'
-import { handleChatFront, sendMessage, setNotificationCallback, clearUnreadForUser, resetEventListeners, currentUser } from './chat.js'
+import { handleChatFront, sendMessage, setNotificationCallback, resetEventListeners } from './chat.js'
 import { handleLoginFront } from './login.js'
 import { handleregisterFront } from './register.js'
 import { handleLogoutFront } from './logout.js'
@@ -47,20 +47,14 @@ async function checkAuth() {
 const createHeader = (auth, showCreatePost = true) => {
     return `
         <header class="forum-header">
-            <h1 class="forum-title" style="cursor: pointer;"><a href="/posts" class="link" style="text-decoration: none; color: inherit;">Forum</a></h1>
+            <h1 class="forum-title">
+                <a href="/posts" class="link">Forum</a>
+            </h1>
             <div class="forum-header-actions">
-                <a href="/chat" class="message-icon-link" id="message-icon-link">
-                    <div class="message-icon-container">
-                        <svg class="message-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                        </svg>
-                        <span class="message-notification-badge" id="message-notification-badge" style="display: none;">0</span>
-                    </div>
-                </a>
                 ${showCreatePost ? '<button id="create-post-btn" class="create-post-btn">Create Post</button>' : ''}
                 <div class="user-profile-container">
                     <div class="user-profile-avatar" id="user-profile-avatar">
-                        <img src="statics/assets/user.png" alt="User">
+                        <img src="./assets/user.png" alt="User">
                     </div>
                     <div class="user-profile-menu" id="user-profile-menu">
                         <div class="user-profile-name">${auth.nickname}</div>
@@ -75,7 +69,7 @@ const createHeader = (auth, showCreatePost = true) => {
 const initHome = async () => {
     const auth = await checkAuth()
     navBar.innerHTML = ''
-    
+
     if (auth.loggedIn) {
         // Redirect to posts if logged in
         window.history.pushState({}, "", "/posts")
@@ -103,25 +97,25 @@ const initPosts = async () => {
         initHome()
         return
     }
-    
+
     // Reset event listeners from previous page
     resetEventListeners()
-    
+
     // Create header with Forum title, message icon, user profile, and create post button
     navBar.innerHTML = createHeader(auth)
     mainCont.innerHTML = postsTemplate()
-    
+
     // Initialize posts
     setTimeout(() => {
         initializePage()
         loadPosts()
-        
+
         // Set notification callback for chat (for header notifications)
         setNotificationCallback(updateMessageNotification)
         // Initialize chat connection for notifications only (not displayed on posts page)
         // Don't force reconnect on posts page, keep existing connection if available
-        handleChatFront(false)
-        
+        //handleChatFront()
+
         // Setup create post button
         const createPostBtn = document.getElementById('create-post-btn')
         if (createPostBtn) {
@@ -131,7 +125,7 @@ const initPosts = async () => {
                 creatPost()
             })
         }
-        
+
         // Setup user profile hover
         const userProfile = document.getElementById('user-profile-avatar')
         const userMenu = document.getElementById('user-profile-menu')
@@ -154,7 +148,7 @@ const initPosts = async () => {
                 userMenu.style.display = 'none'
             })
         }
-        
+
         // Setup logout button
         const logoutBtn = document.getElementById('logout-btn-nav')
         if (logoutBtn) {
@@ -164,7 +158,7 @@ const initPosts = async () => {
                 HandleRouting()
             })
         }
-        
+
         // Setup message icon link
         const messageIconLink = document.getElementById('message-icon-link')
         if (messageIconLink) {
@@ -174,7 +168,7 @@ const initPosts = async () => {
                 HandleRouting()
             })
         }
-        
+
         // Update notification badge
         updateMessageNotification(unreadMessageCount)
     }, 100)
@@ -188,20 +182,20 @@ const initChat = async () => {
         initHome()
         return
     }
-    
+
     // Reset event listeners from previous page
     resetEventListeners()
-    
+
     // Create header with Forum title, message icon, user profile (no create post button on chat page)
     navBar.innerHTML = createHeader(auth, false)
     mainCont.innerHTML = chatTemplate()
-    
+
     // Initialize chat - wait for DOM to be ready
     setTimeout(() => {
         // Check if chat elements exist
         const userListWrapper = document.querySelector(".user-list-wrapper")
         const messagesContainer = document.getElementById("messages")
-        
+
         if (!userListWrapper || !messagesContainer) {
             console.error('Chat elements not found, retrying...')
             // Retry after a bit more time
@@ -210,20 +204,12 @@ const initChat = async () => {
             }, 200)
             return
         }
-        
+
         // Set notification callback for chat
         setNotificationCallback(updateMessageNotification)
-        
-        // Force reconnection to ensure we get fresh init data for chat page
-        // Close existing connection if any to force fresh init
-        if (currentUser.socket) {
-            currentUser.socket.close()
-            currentUser.socket = null
-        }
-        
-        console.log('Initializing chat connection...')
-        handleChatFront(true)
-        
+
+        handleChatFront()
+
         // Setup user profile hover
         const userProfile = document.getElementById('user-profile-avatar')
         const userMenu = document.getElementById('user-profile-menu')
@@ -245,7 +231,7 @@ const initChat = async () => {
                 userMenu.style.display = 'none'
             })
         }
-        
+
         // Setup logout button
         const logoutBtn = document.getElementById('logout-btn-nav')
         if (logoutBtn) {
@@ -255,7 +241,7 @@ const initChat = async () => {
                 HandleRouting()
             })
         }
-        
+
         // Setup message icon link
         const messageIconLink = document.getElementById('message-icon-link')
         if (messageIconLink) {
@@ -265,7 +251,7 @@ const initChat = async () => {
                 HandleRouting()
             })
         }
-        
+
         // Update notification badge
         updateMessageNotification(unreadMessageCount)
     }, 100)
@@ -323,7 +309,7 @@ document.addEventListener("click", (e) => {
         window.history.pushState({}, "", link.href)
         HandleRouting()
     }
-    
+
     // Handle message icon link clicks
     if (e.target.closest('#message-icon-link') || e.target.closest('.message-icon-container')) {
         e.preventDefault()
@@ -346,12 +332,13 @@ document.addEventListener("click", (e) => {
     if (e.target.id === 'send-btn') {
         e.preventDefault()
         sendMessage()
+        handleChatFront()
         return
     }
 
     if (e.target.id === 'logout-btn' || e.target.id === 'logout-btn-nav') {
         e.preventDefault()
-         handleLogoutFront()
+        handleLogoutFront()
         window.history.pushState({}, "", "/")
         HandleRouting()
         return

@@ -1,7 +1,7 @@
 /* ===== CONTENT WRAPPER ===== */
 .contentWrapper {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   gap: 1.5rem;
   width: 100%;
   max-width: 1400px;
@@ -16,7 +16,18 @@
   flex-shrink: 0;
 }
 
+.home-content{
+  position: fixed;
+  top: 35vh;
+  left : 40vw;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+}
+
 .categorienews {
+  order: -1;
+  width: 300%;
   background-color: var(--surface);
   padding: 1.25rem;
   border-radius: var(--radius-lg);
@@ -54,6 +65,7 @@ main {
 
 /* ===== POSTS ===== */
 .postContainer {
+  width: 370%;
   display: flex;
   flex-direction: column;
   background-color: var(--surface);
