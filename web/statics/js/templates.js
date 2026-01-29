@@ -29,14 +29,13 @@ export const postsTemplate = () => {
         </div>
 
         <div class="chat-container">
-            <div id="messages">
-                <img src="statics/assets/sleep.png" alt="sleep-icon" id="sleep-icon">
-            </div>
+            <div id="messages"></div>
 
             <div id="chat-input">
                 <textarea id="chat-textarea" rows="1" placeholder="Écrire un message…"></textarea>
                 <button id="send-btn">📨</button>
             </div>
+            
         </div>
     `
 }

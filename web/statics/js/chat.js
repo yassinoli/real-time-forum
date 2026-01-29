@@ -7,47 +7,12 @@ let currentOffset = 0
 let isLoading = false
 let hasmore = true
 
-// Track unread messages per user
-const unreadMessages = new Map()
-
-// Function to update notification badge (will be set by router)
-let updateNotificationCallback = null
-
-export const setNotificationCallback = (callback) => {
-    updateNotificationCallback = callback
-}
-
-// Function to update notification badge
-const updateNotificationBadge = () => {
-    let totalUnread = 0
-    unreadMessages.forEach((count) => {
-        totalUnread += count
-    })
-
-    if (updateNotificationCallback) {
-        updateNotificationCallback(totalUnread)
-    }
-}
-
-// Function to clear unread count for a user
-export const clearUnreadForUser = (nickname) => {
-    if (unreadMessages.has(nickname)) {
-        unreadMessages.delete(nickname)
-        updateNotificationBadge()
-    }
-}
-
-// Function to add unread message for a user
-const addUnreadForUser = (nickname) => {
-    const current = unreadMessages.get(nickname) || 0
-    unreadMessages.set(nickname, current + 1)
-    updateNotificationBadge()
-}
 
 export class Message {
-    constructor(content, type, receiver, time) {
+    constructor(content, type, sender, receiver, time) {
         this.content = content;
         this.type = type;
+        this.sender = sender
         this.receiver = receiver;
         this.time = new Date(time);
     }
@@ -89,11 +54,24 @@ export class Message {
         timeEl.classList.add("fb-message-time")
         timeEl.textContent = timeStr
 
-        bubble.appendChild(content)
-        bubble.appendChild(timeEl)
-        message.appendChild(bubble)
+        bubble.append(this.type === "me" ? "You:" : this.sender + ":", content, timeEl)
+        message.append(bubble)
 
         return message
+    }
+}
+
+export const throttle = (cb,) => {
+    let timer = null
+
+    return (...args) => {
+        if (timer) return
+
+        cb(...args)
+
+        timer = setTimeout(() => {
+            timer = null
+        }, 500)
     }
 }
 
@@ -120,10 +98,17 @@ const SwapChat = (user) => {
 const openChat = (user) => {
     const chatCont = document.querySelector(".chat-container")
 
-    const header = createUserElement(user, false, true)
+    const header = createUserNode(user, { clickable: false, receiver: true })
     header.removeAttribute("id")
 
+    const closeBtn = document.createElement("button")
+    closeBtn.classList.add("close-chat-btn")
+    closeBtn.textContent = "X"
+    closeBtn.addEventListener("click", closeChat)
+    header.append(closeBtn)
+
     chatCont.prepend(header)
+    chatCont.style.display = "flex"
 
     currentOffset = 0
     hasmore = true
@@ -135,13 +120,10 @@ const openChat = (user) => {
 
 const closeChat = () => {
     const chatCont = document.querySelector(".chat-container")
-    const messages = document.getElementById("messages")
 
     chatCont.firstElementChild?.remove()
+    chatCont.style.display = "none"
 
-    messages.innerHTML = `
-        <img src="statics/assets/sleep.png" alt="sleep-icon" id="sleep-icon">
-    `
     observer.disconnect()
 }
 
@@ -213,9 +195,32 @@ const createUserElement = (user, clickable = true, receiver = false) => {
     return container
 }
 
+const createUserNode = (
+    user,
+    {
+        clickable = true,
+        receiver = false,
+        hasChat = false,
+        pending = null,
+    } = {}
+) => {
+    const el = createUserElement(user, clickable, receiver)
+
+    el.dataset.hasChat = hasChat ? "true" : "false"
+
+    if (pending) {
+        const notif = document.createElement("div")
+        notif.classList.add("msg-notif")
+        notif.textContent = pending
+        el.append(notif)
+    }
+
+    return el
+}
+
 const addMessage = (msg, history = false) => {
     const type = msg.sender === currentUser.nickName ? "me" : "other"
-    const message = new Message(msg.content, type, msg.receiver, msg.time)
+    const message = new Message(msg.content, type, msg.sender, msg.receiver, msg.time)
     const messagesContainer = document.getElementById("messages")
 
     if (history) {
@@ -246,37 +251,20 @@ const observer = new IntersectionObserver((entries) => {
 
 })
 
-// Track if event listeners are already set up
-let textareaListenerSetup = false
-let textareaHandler = null
 
 // Setup event listeners (only once per page)
-const setupEventListeners = () => {
-    // Setup Enter key support for textarea (only if not already set up)
+export const setupEventListeners = () => {
     const chatTextarea = document.getElementById("chat-textarea")
-    if (chatTextarea && !textareaListenerSetup) {
-        textareaHandler = (e) => {
+    if (chatTextarea) {
+        chatTextarea.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault()
-                sendMessage()
+                throttledSendMessage()
             }
-        }
-
-        chatTextarea.addEventListener('keydown', textareaHandler)
-        textareaListenerSetup = true
+        })
     }
 }
 
-// Reset event listeners when page changes
-export const resetEventListeners = () => {
-    textareaListenerSetup = false
-    const chatTextarea = document.getElementById("chat-textarea")
-
-    if (chatTextarea && textareaHandler) {
-        chatTextarea.removeEventListener('keydown', textareaHandler)
-        textareaHandler = null
-    }
-}
 
 export const handleChatFront = () => {
     if (currentUser.socket) return
@@ -291,18 +279,22 @@ export const handleChatFront = () => {
         console.error('WebSocket error:', error)
     }
 
-    currentUser.socket.onmessage = (e) => {
+    currentUser.socket.onmessage = async (e) => {
         try {
-            const data = JSON.parse(e.data)
+            const data = await JSON.parse(e.data)
 
             switch (data.event) {
                 case "init": {
                     const list = document.querySelector(".user-list-wrapper")
                     list.innerHTML = ""
 
+                    if (data.users.length === 0) {
+                        list.textContent = `You are the only user for now`
+                    }
+
                     data.users.sort((a, b) => {
-                        const aHasChat = a.lastChat !== "0001-01-01T00:00:00Z"
-                        const bHasChat = b.lastChat !== "0001-01-01T00:00:00Z"
+                        const aHasChat = !!a.lastChat
+                        const bHasChat = !!b.lastChat
 
                         if (aHasChat && !bHasChat) return -1
                         if (!aHasChat && bHasChat) return 1
@@ -314,17 +306,12 @@ export const handleChatFront = () => {
                         return String(a.nickname).localeCompare(String(b.nickname))
                     })
 
-                    data.users.forEach(u => {
-                        const userEl = createUserElement(u)
-                        if (u.pending) {
-                            const notif = document.createElement("div")
-                            notif.classList.add("msg-notif")
-                            notif.textContent = u.pending
-                            userEl.append(notif)
-                        }
+                    data.users.forEach((u, i) => {
+                        const userEl = createUserNode(u, {
+                            hasChat: !!u.lastChat,
+                            pending: u.pending
+                        })
 
-                        const hasChat = u.lastChat !== "0001-01-01T00:00:00Z"
-                        userEl.dataset.hasChat = hasChat
                         list.append(userEl)
                     })
 
@@ -334,6 +321,8 @@ export const handleChatFront = () => {
 
                 case "chat": {
                     const receiver = document.getElementById("receiver")
+                    const list = document.querySelector(".user-list-wrapper")
+
 
                     if (!receiver || receiver.textContent !== data.message.sender) {
                         const senderEl = document.getElementById(data.message.sender)
@@ -342,24 +331,26 @@ export const handleChatFront = () => {
 
                         senderEl.remove()
 
-                        const newUserEl = createUserElement({ nickname: data.message.sender, online: true }, true, false)
-                        newUserEl.dataset.hasChat = "true"
+                        const newUserEl = createUserNode(
+                            { nickname: data.message.sender, online: true },
+                            { hasChat: true }
+                        )
+
                         const notif = document.createElement("div")
                         notif.classList.add("msg-notif")
                         notif.textContent = notifNumber + 1
                         newUserEl.append(notif)
 
-                        const list = document.querySelector(".user-list-wrapper")
                         list.prepend(newUserEl)
                         list.scrollTo({ top: 0, behavior: "smooth" })
                         break
                     } else {
                         addMessage(data.message)
 
-                        const senderEl = document.getElementById(data.message.sender)
-                        if (senderEl.dataset.hasChat === "false") {
-                            senderEl.dataset.hasChat = "true"
-                        }
+                        document.getElementById(data.message.sender).remove()
+                        const newEl = createUserNode({ nickname: data.message.sender, online: true }, { hasChat: true })
+                        list.prepend(newEl)
+
                     }
 
                     break
@@ -380,8 +371,7 @@ export const handleChatFront = () => {
                     const newScrollHeight = cont.scrollHeight
                     cont.scrollTop = prevScrollTop + (newScrollHeight - prevScrollHeight)
 
-                    if (cont.scrollHeight <= cont.clientHeight) {
-                        if (!hasmore) return
+                    if (cont.scrollHeight <= cont.clientHeight && hasmore) {
                         isLoading = true
 
                         currentUser.socket.send(JSON.stringify({
@@ -396,40 +386,42 @@ export const handleChatFront = () => {
                 case "join": {
                     const currentUserEl = document.getElementById(data.newcommers)
 
-                    if (!currentUserEl) {
+                    if (!currentUserEl) { // the user is new
                         const list = document.querySelector(".user-list-wrapper")
-                        const newUser = createUserElement({ nickname: data.newcommers, online: true })
-                        newUser.dataset.hasChat = "false"
+                        if (list.textContent === `You are the only user for now`) {
+                            list.innerHTML = ``
+                        }
 
-                        let insertBefore = null
+                        const newUser = createUserNode(
+                            { nickname: data.newcommers, online: true },
+                            { hasChat: false }
+                        )
+
                         const allUsers = Array.from(list.children)
+                        let next = null
 
-                        for (let i = allUsers.length - 1; i >= 0; i--) {
-                            const userEl = allUsers[i]
+                        for (let i = 0; i < allUsers.length; i++) {
+                            const curr = allUsers[i]
 
-                            if (userEl.dataset.hasChat === "true") continue
+                            if (curr.dataset.hasChat === "true") continue
 
-                            const existingNickname = userEl.querySelector("span").textContent
+                            if (data.newcommers.localeCompare(curr.id) > 0) continue
 
-                            if (data.newcommers.localeCompare(existingNickname) < 0) {
-                                insertBefore = userEl
-                            } else {
-                                break
-                            }
+                            next = curr
+                            break
                         }
 
-                        if (insertBefore) {
-                            list.insertBefore(newUser, insertBefore)
-                        } else {
-                            list.append(newUser)
-                        }
+                        list.insertBefore(newUser, next)
                         break
                     }
 
 
                     //saved user is loging 
                     const oldNotif = currentUserEl.querySelector(".msg-notif")
-                    const newUser = createUserElement({ nickname: data.newcommers, online: true }, true, false)
+                    const newUser = createUserNode(
+                        { nickname: data.newcommers, online: true },
+                        { hasChat: currentUserEl.dataset.hasChat === "true" }
+                    )
                     if (oldNotif) newUser.append(oldNotif)
                     currentUserEl.parentElement.insertBefore(newUser, currentUserEl)
                     currentUserEl.remove()
@@ -448,7 +440,10 @@ export const handleChatFront = () => {
                 case "leave": {
                     const currentUserEl = document.getElementById(data.left)
                     const oldNotif = currentUserEl.querySelector(".msg-notif")
-                    const newUser = createUserElement({ nickname: data.left, online: false }, true, false)
+                    const newUser = createUserNode(
+                        { nickname: data.left, online: false },
+                        { hasChat: currentUserEl.dataset.hasChat === "true" }
+                    )
                     if (oldNotif) newUser.append(oldNotif)
                     currentUserEl.parentElement.insertBefore(newUser, currentUserEl)
                     currentUserEl.remove()
@@ -471,7 +466,7 @@ export const handleChatFront = () => {
     }
 }
 
-export const sendMessage = () => {
+const sendMessage = () => {
     const receiver = document.getElementById("receiver")?.textContent
     const input = document.getElementById("chat-textarea")
     if (!receiver || !input.value) return
@@ -492,3 +487,5 @@ export const sendMessage = () => {
 
     input.value = ""
 }
+
+export const throttledSendMessage = throttle(sendMessage)

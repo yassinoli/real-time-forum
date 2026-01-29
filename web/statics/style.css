@@ -145,7 +145,7 @@ a {
     flex-direction: column;
     align-items: center;
     top: 100%;
-    left: 50%;
+    left: -50%;
     transform: translate(-50%);
     border: 1px solid var(--border);
     background: white;
@@ -212,10 +212,10 @@ a {
 
 /* ===== COLONNE GAUCHE : USERS ===== */
 .user-list-container {
-    flex: 2;
     min-width: 220px;
     border: 2px solid rgba(0, 0, 0, 0.2);
     padding: 0;
+    margin-right: 5%;
     background: white;
     border-radius: 12px;
     overflow: hidden;
@@ -243,6 +243,7 @@ a {
     max-height: calc(100vh - 200px);
     display: flex;
     flex-direction: column;
+    text-align: center;
     gap: 0.5rem;
 }
 
@@ -345,7 +346,7 @@ main {
 /* ===== COLONNE DROITE : CHAT ===== */
 .chat-container {
     flex: 3;
-    display: flex;
+    display:none;
     flex-direction: column;
     min-width: 0;
     border: 2px solid rgba(0, 0, 0, 0.2);
@@ -734,6 +735,10 @@ form.form-container button:active {
     .fb-message-bubble {
         max-width: 85%;
     }
+}
+
+.close-chat-btn {
+    background-color: red;
 }
 
 /* Très petits écrans (téléphones en mode portrait) */

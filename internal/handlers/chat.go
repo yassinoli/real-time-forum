@@ -69,7 +69,6 @@ func (a *App) WebsocketHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		msg.Sender = client.NickName
-		msg.Time = time.Now()
 
 		broadcast <- msg
 	}
@@ -150,7 +149,9 @@ func Broadcast(db *sql.DB) {
 
 		case msg := <-broadcast:
 
-			if msg.Type == "load_history" {
+			switch msg.Type {
+			case "load_history":
+
 				// set the olds messages of the two users as "read"
 				_, err := db.Exec(`
 				UPDATE private_message
@@ -198,26 +199,97 @@ func Broadcast(db *sql.DB) {
 				}
 
 				continue
-			}
 
-			if receiverConn, ok := clients[msg.Receiver]; ok {
-				receiverConn.WriteJSON(map[string]any{
-					"event":   "chat",
-					"message": msg,
-				})
-			}
+			case "chat":
+				if receiverConn, ok := clients[msg.Receiver]; ok {
+					receiverConn.WriteJSON(map[string]any{
+						"event":   "chat",
+						"message": msg,
+					})
+				}
 
-			messageID, _ := uuid.NewV4()
+				messageID, _ := uuid.NewV4()
+				now := time.Now().UnixMilli()
 
-			db.Exec(`
-				INSERT INTO private_message (id, sender_id, receiver_id, content)
+				db.Exec(`
+				INSERT INTO private_message (id, sender_id, receiver_id, content, created_at)
 				VALUES (
 					?,
 					(SELECT id FROM user WHERE nickname = ?),
 					(SELECT id FROM user WHERE nickname = ?),
+					?,
 					?
 				)
-			`, messageID.String(), msg.Sender, msg.Receiver, msg.Content)
+			`, messageID.String(), msg.Sender, msg.Receiver, msg.Content, now)
+
+			case "reload":
+				var user_id string
+
+				err := db.QueryRow(`SELECT id FROM user WHERE nickname = ?`, msg.Sender).Scan(&user_id)
+				if err != nil {
+					fmt.Println(err)
+					continue
+				}
+
+				client := models.Client{
+					NickName: msg.Sender,
+					ID:       user_id,
+					Ws:       clients[msg.Sender],
+				}
+
+				rows, err := db.Query(`SELECT nickname, id FROM user WHERE id != ?`, client.ID)
+				if err != nil {
+					fmt.Println(err)
+					continue
+				}
+
+				users := []models.OtherClient{}
+
+				for rows.Next() {
+					var u models.OtherClient
+					var id string
+					if err := rows.Scan(&u.NickName, &id); err != nil {
+						fmt.Println(err)
+						continue
+					}
+
+					err := db.QueryRow(`
+				SELECT created_at
+				FROM private_message
+				WHERE (sender_id = ? AND receiver_id = ?)
+				OR (receiver_id = ? AND sender_id = ?)
+				ORDER BY created_at DESC
+				LIMIT 1
+				`, client.ID, id, client.ID, id).Scan(&u.LastChat)
+					if err != nil && err != sql.ErrNoRows {
+						fmt.Println(err)
+						continue
+					}
+
+					err = db.QueryRow(`
+    			SELECT COUNT(*)
+    			FROM private_message
+    			WHERE sender_id = ?
+      			AND receiver_id = ?
+     			AND is_read = FALSE
+				`, id, client.ID).Scan(&u.Pending_Message)
+					if err != nil && err != sql.ErrNoRows {
+						fmt.Println(err)
+						continue
+					}
+
+					_, u.Online = clients[u.NickName]
+					users = append(users, u)
+				}
+
+				rows.Close()
+
+				client.Ws.WriteJSON(map[string]any{
+					"event":    "init",
+					"users":    users,
+					"nickname": client.NickName,
+				})
+			}
 
 		case client := <-disconnect:
 			delete(clients, client.NickName)

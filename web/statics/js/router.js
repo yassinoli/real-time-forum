@@ -1,5 +1,5 @@
-import { homeTemplate, registerTemplate, loginTemplate, chatTemplate, postsTemplate } from './templates.js'
-import { handleChatFront, sendMessage, setNotificationCallback, resetEventListeners } from './chat.js'
+import { homeTemplate, registerTemplate, loginTemplate, postsTemplate } from './templates.js'
+import { currentUser, handleChatFront, setupEventListeners, throttledSendMessage } from './chat.js'
 import { handleLoginFront } from './login.js'
 import { handleregisterFront } from './register.js'
 import { handleLogoutFront } from './logout.js'
@@ -8,28 +8,6 @@ import { creatPost } from './createPost.js'
 
 const mainCont = document.getElementById('main-container')
 const navBar = document.getElementById('nav-bar')
-
-// Global unread message count
-let unreadMessageCount = 0
-
-// Function to update notification badge
-export const updateMessageNotification = (count) => {
-    unreadMessageCount = count
-    const notificationBadge = document.getElementById('message-notification-badge')
-    if (notificationBadge) {
-        if (count > 0) {
-            notificationBadge.textContent = count > 99 ? '99+' : count
-            notificationBadge.style.display = 'flex'
-        } else {
-            notificationBadge.style.display = 'none'
-        }
-    }
-}
-
-// Function to get unread count
-export const getUnreadCount = () => {
-    return unreadMessageCount
-}
 
 // Check if user is logged in and get user info
 async function checkAuth() {
@@ -54,7 +32,7 @@ const createHeader = (auth, showCreatePost = true) => {
                 ${showCreatePost ? '<button id="create-post-btn" class="create-post-btn">Create Post</button>' : ''}
                 <div class="user-profile-container">
                     <div class="user-profile-avatar" id="user-profile-avatar">
-                        <img src="./assets/user.png" alt="User">
+                        <img src="./statics/assets/user.png" alt="User">
                     </div>
                     <div class="user-profile-menu" id="user-profile-menu">
                         <div class="user-profile-name">${auth.nickname}</div>
@@ -98,9 +76,6 @@ const initPosts = async () => {
         return
     }
 
-    // Reset event listeners from previous page
-    resetEventListeners()
-
     // Create header with Forum title, message icon, user profile, and create post button
     navBar.innerHTML = createHeader(auth)
     mainCont.innerHTML = postsTemplate()
@@ -109,12 +84,16 @@ const initPosts = async () => {
     setTimeout(() => {
         initializePage()
         loadPosts()
+        if (currentUser.socket) {
+            currentUser.socket.send(JSON.stringify({
+                type: "reload",
+            }))
 
-        // Set notification callback for chat (for header notifications)
-        setNotificationCallback(updateMessageNotification)
-        // Initialize chat connection for notifications only (not displayed on posts page)
-        // Don't force reconnect on posts page, keep existing connection if available
-        //handleChatFront()
+            setupEventListeners()
+
+        } else {
+            handleChatFront()
+        }
 
         // Setup create post button
         const createPostBtn = document.getElementById('create-post-btn')
@@ -159,110 +138,15 @@ const initPosts = async () => {
             })
         }
 
-        // Setup message icon link
-        const messageIconLink = document.getElementById('message-icon-link')
-        if (messageIconLink) {
-            messageIconLink.addEventListener('click', (e) => {
-                e.preventDefault()
-                window.history.pushState({}, "", "/chat")
-                HandleRouting()
-            })
-        }
-
-        // Update notification badge
-        updateMessageNotification(unreadMessageCount)
     }, 100)
 }
 
-const initChat = async () => {
-    // Check authentication first
-    const auth = await checkAuth()
-    if (!auth.loggedIn) {
-        window.history.pushState({}, "", "/")
-        initHome()
-        return
-    }
-
-    // Reset event listeners from previous page
-    resetEventListeners()
-
-    // Create header with Forum title, message icon, user profile (no create post button on chat page)
-    navBar.innerHTML = createHeader(auth, false)
-    mainCont.innerHTML = chatTemplate()
-
-    // Initialize chat - wait for DOM to be ready
-    setTimeout(() => {
-        // Check if chat elements exist
-        const userListWrapper = document.querySelector(".user-list-wrapper")
-        const messagesContainer = document.getElementById("messages")
-
-        if (!userListWrapper || !messagesContainer) {
-            console.error('Chat elements not found, retrying...')
-            // Retry after a bit more time
-            setTimeout(() => {
-                initChat()
-            }, 200)
-            return
-        }
-
-        // Set notification callback for chat
-        setNotificationCallback(updateMessageNotification)
-
-        handleChatFront()
-
-        // Setup user profile hover
-        const userProfile = document.getElementById('user-profile-avatar')
-        const userMenu = document.getElementById('user-profile-menu')
-        if (userProfile && userMenu) {
-            userProfile.addEventListener('mouseenter', () => {
-                userMenu.style.display = 'block'
-            })
-            userProfile.addEventListener('mouseleave', () => {
-                setTimeout(() => {
-                    if (!userMenu.matches(':hover')) {
-                        userMenu.style.display = 'none'
-                    }
-                }, 200)
-            })
-            userMenu.addEventListener('mouseenter', () => {
-                userMenu.style.display = 'block'
-            })
-            userMenu.addEventListener('mouseleave', () => {
-                userMenu.style.display = 'none'
-            })
-        }
-
-        // Setup logout button
-        const logoutBtn = document.getElementById('logout-btn-nav')
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', async () => {
-                await handleLogoutFront()
-                window.history.pushState({}, "", "/")
-                HandleRouting()
-            })
-        }
-
-        // Setup message icon link
-        const messageIconLink = document.getElementById('message-icon-link')
-        if (messageIconLink) {
-            messageIconLink.addEventListener('click', (e) => {
-                e.preventDefault()
-                window.history.pushState({}, "", "/chat")
-                HandleRouting()
-            })
-        }
-
-        // Update notification badge
-        updateMessageNotification(unreadMessageCount)
-    }, 100)
-}
 
 const routes = {
     "/": initHome,
     "/register": initRegister,
     "/login": initLogin,
     "/posts": initPosts,
-    "/chat": initChat,
     "/logout": async () => {
         await handleLogoutFront()
         window.history.pushState({}, "", "/")
@@ -310,13 +194,6 @@ document.addEventListener("click", (e) => {
         HandleRouting()
     }
 
-    // Handle message icon link clicks
-    if (e.target.closest('#message-icon-link') || e.target.closest('.message-icon-container')) {
-        e.preventDefault()
-        window.history.pushState({}, "", "/chat")
-        HandleRouting()
-    }
-
     if (e.target.id === 'register-submit-btn') {
         e.preventDefault()
         handleregisterFront()
@@ -331,7 +208,7 @@ document.addEventListener("click", (e) => {
 
     if (e.target.id === 'send-btn') {
         e.preventDefault()
-        sendMessage()
+        throttledSendMessage()
         handleChatFront()
         return
     }

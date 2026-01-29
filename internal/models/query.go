@@ -53,35 +53,13 @@ CREATE TABLE IF NOT EXISTS post_category (
     FOREIGN KEY (category_id) REFERENCES category(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS post_reaction (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id TEXT NOT NULL,
-    post_id TEXT NOT NULL,
-    is_like BOOLEAN NOT NULL,
-    created_at DATETIME DEFAULT (datetime('now')),
-    FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE,
-    FOREIGN KEY (post_id) REFERENCES post(id) ON DELETE CASCADE,
-    CONSTRAINT unique_post_reaction UNIQUE (user_id, post_id)
-);
-
-CREATE TABLE IF NOT EXISTS comment_reaction (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id TEXT NOT NULL,
-    comment_id TEXT NOT NULL,
-    is_like BOOLEAN NOT NULL,
-    created_at DATETIME DEFAULT (datetime('now')),
-    FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE,
-    FOREIGN KEY (comment_id) REFERENCES comment(id) ON DELETE CASCADE,
-    CONSTRAINT unique_comment_reaction UNIQUE (user_id, comment_id)
-);
-
 CREATE TABLE IF NOT EXISTS private_message (
     id TEXT PRIMARY KEY,
     sender_id TEXT NOT NULL,
     receiver_id TEXT NOT NULL,
     content TEXT NOT NULL,
     is_read BOOLEAN DEFAULT FALSE,
-    created_at DATETIME DEFAULT (datetime('now')),
+    created_at INTEGER NOT NULL,
     FOREIGN KEY (sender_id) REFERENCES user(id) ON DELETE CASCADE,
     FOREIGN KEY (receiver_id) REFERENCES user(id) ON DELETE CASCADE
 );
