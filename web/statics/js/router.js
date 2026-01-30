@@ -154,13 +154,14 @@ const routes = {
     },
 }
 
-const render404 = () => {
+export const renderError = (message, code) => {
     navBar.innerHTML = ''
+
     mainCont.innerHTML = `
         <div class="error-container">
-            <h1>404 - Page non trouvée</h1>
-            <p>La page que vous recherchez n'existe pas.</p>
-            <a href="/" class="link">Retour à l'accueil</a>
+            <h1>Error ${code}</h1>
+            <p>${message}</p>
+            <a href="/" class="link">Back to home</a>
         </div>
     `
 }
@@ -171,7 +172,7 @@ export const HandleRouting = async () => {
     const initFunc = routes[path]
 
     if (!initFunc) {
-        render404()
+        renderError("Page not found", 404)
         return
     }
 

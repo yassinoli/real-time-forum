@@ -2,13 +2,14 @@ import { HandleRouting } from './router.js'
 
 export const handleregisterFront = async () => {
     const userData = {}
+    const errorDiv = document.querySelector(".input-error")
 
     const gender = document.querySelector('input[name="gender"]:checked')
     if (!gender) {
-        const errorDiv = document.querySelector(".input-error")
-        if (errorDiv) errorDiv.textContent = "Please select a gender"
+        errorDiv.textContent = "Please select a gender"
         return
     }
+
     userData.gender = gender.value
 
     const firstName = document.getElementById("firstName")?.value
@@ -19,8 +20,7 @@ export const handleregisterFront = async () => {
     const password = document.getElementById("password")?.value
 
     if (!firstName || !lastName || !nickName || !age || !email || !password) {
-        const errorDiv = document.querySelector(".input-error")
-        if (errorDiv) errorDiv.textContent = "Please fill all fields"
+        errorDiv.textContent = "Please fill all fields"
         return
     }
 
@@ -31,8 +31,6 @@ export const handleregisterFront = async () => {
     userData.email = email
     userData.password = password
 
-    const errorDiv = document.querySelector(".input-error")
-    
     try {
         const resp = await fetch("/register", {
             method: "POST",
@@ -43,9 +41,7 @@ export const handleregisterFront = async () => {
         const res = await resp.json()
 
         if (!resp.ok || res.code !== 200) {
-            if (errorDiv) {
-                errorDiv.textContent = res.error || res.message || "Registration failed"
-            }
+            errorDiv.textContent = res.error || res.message || "Registration failed"
             return
         }
 
@@ -55,8 +51,6 @@ export const handleregisterFront = async () => {
 
     } catch (err) {
         console.error(err)
-        if (errorDiv) {
-            errorDiv.textContent = "An error occurred. Please try again."
-        }
+        errorDiv.textContent = "An error occurred. Please try again."
     }
 }

@@ -18,8 +18,7 @@ import (
 func Register(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	user := &models.User{}
 	resp := &models.Resp{
-		Code:    200,
-		Message: "you're registered",
+		Code: 200,
 	}
 
 	err := helpers.GetData(r, user)
@@ -58,11 +57,23 @@ func isAlphaOnly(s string) bool {
 var emailRegex = regexp.MustCompile(`^[^\s@]+@[^\s@]+\.[^\s@]+$`)
 
 func insertUser(user *models.User, resp *models.Resp, db *sql.DB) uuid.UUID {
+	// Trim spaces
+	user.FirstName = strings.TrimSpace(user.FirstName)
+	user.LastName = strings.TrimSpace(user.LastName)
+	user.Nickname = strings.TrimSpace(user.Nickname)
+	user.Email = strings.TrimSpace(user.Email)
+
 	// Validate required fields
-	if user.FirstName == "" || user.LastName == "" || user.Nickname == "" || 
-	   user.Email == "" || user.Password == "" || user.Gender == "" {
+	if user.FirstName == "" || user.LastName == "" || user.Nickname == "" ||
+		user.Email == "" || user.Password == "" || user.Gender == "" {
 		resp.Code = 400
 		resp.Error = "all fields are required"
+		return uuid.Nil
+	}
+
+	if user.Gender != "male" && user.Gender != "female" {
+		resp.Code = 400
+		resp.Error = "only male or female are allowed as gender"
 		return uuid.Nil
 	}
 
@@ -71,12 +82,6 @@ func insertUser(user *models.User, resp *models.Resp, db *sql.DB) uuid.UUID {
 		resp.Error = "age must be a valid positive number"
 		return uuid.Nil
 	}
-
-	// Trim spaces
-	user.FirstName = strings.TrimSpace(user.FirstName)
-	user.LastName = strings.TrimSpace(user.LastName)
-	user.Nickname = strings.TrimSpace(user.Nickname)
-	user.Email = strings.TrimSpace(user.Email)
 
 	// Validate first and last names: only letters a-z / A-Z
 	if !isAlphaOnly(user.FirstName) || !isAlphaOnly(user.LastName) {
@@ -95,7 +100,7 @@ func insertUser(user *models.User, resp *models.Resp, db *sql.DB) uuid.UUID {
 	// Validate password length (> 6 characters)
 	if len(user.Password) <= 6 {
 		resp.Code = 400
-		resp.Error = "password must be longer than 6 characters"
+		resp.Error = "password must at least have 6 characters"
 		return uuid.Nil
 	}
 
@@ -131,12 +136,12 @@ func insertUser(user *models.User, resp *models.Resp, db *sql.DB) uuid.UUID {
 
 		switch {
 		case strings.Contains(msg, "user.email"):
-			resp.Error = "an account with this email already exists"
+			resp.Error = "invalid or already used credentials"
 			resp.Code = http.StatusConflict
 			return uuid.Nil
 
 		case strings.Contains(msg, "user.nickname"):
-			resp.Error = "this nickname is already taken"
+			resp.Error = "invalid or already used credentials"
 			resp.Code = http.StatusConflict
 			return uuid.Nil
 

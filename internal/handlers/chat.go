@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"real-time-forum/internal/models"
@@ -47,13 +48,40 @@ func (a *App) WebsocketHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ws.SetReadDeadline(time.Now().Add(60 * time.Second))
+
+	ws.SetPongHandler(func(appData string) error {
+		ws.SetReadDeadline(time.Now().Add(60 * time.Second))
+		return nil
+	})
+
 	client := models.Client{
 		ID:       userID,
 		NickName: nickname,
 		Ws:       ws,
+		Mu:       &sync.Mutex{},
 	}
 
 	connect <- client
+
+	go func() {
+		ticker := time.NewTicker(54 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			<-ticker.C
+
+			ws.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			client.Mu.Lock()
+			if err := ws.WriteMessage(websocket.PingMessage, nil); err != nil {
+				ws.Close()
+				disconnect <- client
+				client.Mu.Unlock()
+				return
+			}
+			client.Mu.Unlock()
+		}
+	}()
 
 	for {
 		_, payload, err := ws.ReadMessage()
@@ -75,13 +103,13 @@ func (a *App) WebsocketHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func Broadcast(db *sql.DB) {
-	clients := make(map[string]*websocket.Conn)
+	clients := make(map[string]models.Client)
 
 	for {
 		select {
 
 		case client := <-connect:
-			clients[client.NickName] = client.Ws
+			clients[client.NickName] = client
 
 			rows, err := db.Query(`SELECT nickname, id FROM user WHERE id != ?`, client.ID)
 			if err != nil {
@@ -130,21 +158,27 @@ func Broadcast(db *sql.DB) {
 
 			rows.Close()
 
+			client.Mu.Lock()
 			client.Ws.WriteJSON(map[string]any{
 				"event":    "init",
 				"users":    users,
 				"nickname": client.NickName,
 			})
+			client.Mu.Unlock()
 
-			for name, conn := range clients {
-				if name == client.NickName {
+			newClient := client
+
+			for name, c := range clients {
+				if name == newClient.NickName {
 					continue
 				}
 
-				conn.WriteJSON(map[string]any{
+				c.Mu.Lock()
+				c.Ws.WriteJSON(map[string]any{
 					"event":      "join",
-					"newcommers": client.NickName,
+					"newcommers": newClient.NickName,
 				})
+				c.Mu.Unlock()
 			}
 
 		case msg := <-broadcast:
@@ -191,21 +225,25 @@ func Broadcast(db *sql.DB) {
 				}
 				rows.Close()
 
-				if conn, ok := clients[msg.Sender]; ok {
-					conn.WriteJSON(map[string]any{
+				if client, ok := clients[msg.Sender]; ok {
+					client.Mu.Lock()
+					client.Ws.WriteJSON(map[string]any{
 						"event":    "history",
 						"messages": messages,
 					})
+					client.Mu.Unlock()
 				}
 
 				continue
 
 			case "chat":
-				if receiverConn, ok := clients[msg.Receiver]; ok {
-					receiverConn.WriteJSON(map[string]any{
+				if client, ok := clients[msg.Receiver]; ok {
+					client.Mu.Lock()
+					client.Ws.WriteJSON(map[string]any{
 						"event":   "chat",
 						"message": msg,
 					})
+					client.Mu.Unlock()
 				}
 
 				messageID, _ := uuid.NewV4()
@@ -234,7 +272,8 @@ func Broadcast(db *sql.DB) {
 				client := models.Client{
 					NickName: msg.Sender,
 					ID:       user_id,
-					Ws:       clients[msg.Sender],
+					Ws:       clients[msg.Sender].Ws,
+					Mu:       clients[msg.Sender].Mu,
 				}
 
 				rows, err := db.Query(`SELECT nickname, id FROM user WHERE id != ?`, client.ID)
@@ -284,24 +323,25 @@ func Broadcast(db *sql.DB) {
 
 				rows.Close()
 
+				client.Mu.Lock()
 				client.Ws.WriteJSON(map[string]any{
 					"event":    "init",
 					"users":    users,
 					"nickname": client.NickName,
 				})
+				client.Mu.Unlock()
 			}
 
-		case client := <-disconnect:
-			delete(clients, client.NickName)
-			for name, conn := range clients {
-				if name == client.NickName {
-					continue
-				}
+		case leftClient := <-disconnect:
+			delete(clients, leftClient.NickName)
 
-				conn.WriteJSON(map[string]any{
+			for _, c := range clients {
+				c.Mu.Lock()
+				c.Ws.WriteJSON(map[string]any{
 					"event": "leave",
-					"left":  client.NickName,
+					"left":  leftClient.NickName,
 				})
+				c.Mu.Unlock()
 			}
 		}
 	}

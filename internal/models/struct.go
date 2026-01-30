@@ -1,6 +1,8 @@
 package models
 
 import (
+	"sync"
+
 	"github.com/gorilla/websocket"
 )
 
@@ -24,6 +26,7 @@ type Client struct {
 	ID       string
 	NickName string
 	Ws       *websocket.Conn
+	Mu       *sync.Mutex
 }
 
 type Message struct {
