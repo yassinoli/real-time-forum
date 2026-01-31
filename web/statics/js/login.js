@@ -47,7 +47,7 @@ export const handleLoginFront = async () => {
         console.error(err)
         const errorDiv = document.querySelector(".input-error")
         if (errorDiv) {
-            errorDiv.textContent = "An error occurred. Please try again."
+            errorDiv.textContent = "failed to login try with a correct information."
         }
     }
 }

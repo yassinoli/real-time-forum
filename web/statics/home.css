@@ -1,5 +1,6 @@
 /* ===== CONTENT WRAPPER ===== */
 .contentWrapper {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -12,6 +13,7 @@
 
 /* ===== SIDEBAR ===== */
 .sidebar {
+  display: flex;
   width: 220px;
   flex-shrink: 0;
 }
@@ -26,8 +28,9 @@
 }
 
 .categorienews {
+  position: absolute;
   order: -1;
-  width: 300%;
+  width: 80%;
   background-color: var(--surface);
   padding: 1.25rem;
   border-radius: var(--radius-lg);
@@ -55,17 +58,18 @@
 
 /* ===== MAIN CONTENT ===== */
 main {
+  position: relative;
+  margin-top: 10vh;
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  min-width: 0;
-  max-width: 100%;
+  width: 100%;
 }
 
 /* ===== POSTS ===== */
 .postContainer {
-  width: 370%;
+  width:100%;
   display: flex;
   flex-direction: column;
   background-color: var(--surface);
@@ -400,7 +404,7 @@ main {
 
   .sidebar {
     width: 100%;
-    order: 2;
+    order: -1;
   }
   
   main {
@@ -421,6 +425,7 @@ main {
   }
 
   .sidebar {
+    order: -1;
     width: 100%;
   }
 
@@ -458,11 +463,12 @@ main {
   }
 
   .sidebar {
-    order: 2;
+    order: -1;
   }
   
   .categorienews {
     padding: 1rem;
+    order: -1;
   }
 
   .postContainer {

@@ -7,7 +7,7 @@ import (
 )
 
 func ServeStatic(w http.ResponseWriter, r *http.Request) {
-	path := "../web" + r.URL.Path
+	path := "./web" + r.URL.Path
 
 	file, err := os.Stat(path)
 	if err != nil {
