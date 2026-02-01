@@ -692,9 +692,7 @@ form.form-container button:active {
         flex: 1;
     }
     
-    .contentWrapper {
-        max-height: none;
-    }
+   
 
     /* Le chat prend tout l'écran sur mobile */
     .chat-container {
@@ -790,10 +788,7 @@ form.form-container button:active {
         padding: 10px;
     }
     
-    .contentWrapper {
-        padding: 10px;
-        gap: 10px;
-    }
+   
     
     #chat-input {
         padding: 10px;
