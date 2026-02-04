@@ -150,6 +150,19 @@ func Broadcast(db *sql.DB) {
 		case msg := <-broadcast:
 
 			switch msg.Type {
+			case "mark_read":
+				// mark all messages from this conversation as read (user has chat open)
+				_, err := db.Exec(`
+				UPDATE private_message
+				SET is_read = TRUE
+				WHERE sender_id = (SELECT id FROM user WHERE nickname = ?)
+				AND receiver_id = (SELECT id FROM user WHERE nickname = ?)
+				`, msg.Receiver, msg.Sender)
+				if err != nil {
+					fmt.Println(err)
+				}
+				continue
+
 			case "load_history":
 
 				// set the olds messages of the two users as "read"

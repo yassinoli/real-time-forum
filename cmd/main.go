@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	db, err := sql.Open("sqlite3", "../internal/database/real-time-forum.db")
+	db, err := sql.Open("sqlite3", "./internal/database/real-time-forum.db")
 	if err != nil {
 		fmt.Println("error creating db file: ", err)
 		return

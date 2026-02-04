@@ -347,6 +347,13 @@ export const handleChatFront = () => {
                     } else {
                         addMessage(data.message)
 
+                        // mark messages as read so refresh doesn't show wrong notification count
+                        currentUser.socket.send(JSON.stringify({
+                            type: "mark_read",
+                            sender: currentUser.nickName,
+                            receiver: data.message.sender
+                        }))
+
                         document.getElementById(data.message.sender).remove()
                         const newEl = createUserNode({ nickname: data.message.sender, online: true }, { hasChat: true })
                         list.prepend(newEl)
@@ -489,3 +496,4 @@ const sendMessage = () => {
 }
 
 export const throttledSendMessage = throttle(sendMessage)
+

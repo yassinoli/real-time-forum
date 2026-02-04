@@ -7,7 +7,7 @@ import (
 )
 
 func RenderMainpage(w http.ResponseWriter) {
-	tmpl, err := template.ParseFiles("../web/index.html")
+	tmpl, err := template.ParseFiles("./web/index.html")
 	if err != nil {
 		fmt.Println("error while parsing the template")
 		// render a 500 error
