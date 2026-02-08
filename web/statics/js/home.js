@@ -163,12 +163,12 @@ function displayPost(post) {
         <textarea name="content" placeholder="Write a comment..." required maxlength="200"></textarea>
         <button type="submit">Add Comment</button>
     `
-    commentForm.addEventListener('submit', async (e) => {
-        e.preventDefault()
-        const formData = new FormData(commentForm)
-        formData.append('post_id', post.postId)
-        await addComment(post.postId, formData)
-    })
+ commentForm.addEventListener('submit', async (e) => {
+    e.preventDefault()
+    // Pass the form itself
+    await addComment(post.postId, commentForm)
+})
+
     commentsContainer.appendChild(commentForm)
 
     container.appendChild(commentsSection)
@@ -240,12 +240,31 @@ function displayComments(postId, comments) {
     commentsContainer.insertBefore(commentsList, commentForm)
 }
 
-// Add a comment
-async function addComment(postId, formData) {
+// Add a comment using JSON
+async function addComment(postId, form) {
+
+    const textarea = form.querySelector('textarea[name="content"]')
+    if (!textarea) {
+        alert('Comment field not found')
+        return
+    }
+
+    const content = textarea.value.trim()
+    if (!content) {
+        alert('Please enter a comment')
+        return
+    }
+
+    const payload = {
+        post_id: postId,
+        content
+    }
+
     try {
         const response = await fetch('/api/comments/add', {
             method: 'POST',
-            body: formData
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
         })
 
         if (!response.ok) {
@@ -255,15 +274,12 @@ async function addComment(postId, formData) {
 
         const post = await response.json()
         displayComments(postId, post.comments || [])
-        
-        // Update comment count
-        const toggleBtn = document.querySelector(`.toggleComments[data-post-id="${postId}"]`)
-        if (toggleBtn) {
-            toggleBtn.textContent = `${post.commentCount || 0} Comments`
-        }
 
-        // Clear form
-        const form = document.querySelector(`#comments-${postId} .commentForm`)
+        // commentCount
+        const toggleBtn = document.querySelector(`.toggleComments[data-post-id="${postId}"]`)
+        if (toggleBtn) toggleBtn.textContent = `${post.commentCount || 0} Comments`
+
+        // delete form
         form.reset()
         document.querySelector('.noComments')?.remove()
     } catch (error) {
@@ -271,6 +287,8 @@ async function addComment(postId, formData) {
         alert('Failed to add comment. Please try again.')
     }
 }
+
+
 
 // Create post button handler - will be set up in router
 export function setupCreatePostButton() {

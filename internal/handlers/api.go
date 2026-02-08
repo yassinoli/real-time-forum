@@ -12,15 +12,17 @@ import (
 
 // setCORSHeaders sets CORS headers for API responses
 func setCORSHeaders(w http.ResponseWriter) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Access-Control-Allow-Origin", "*") //acces to server from an domain
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS") // request accepted 
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type") //accept 1 header 
 }
 
 // GetPostsHandler returns paginated posts as JSON
 func (app *App) GetPostsHandler(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w)
-
+	
+	//The OPTIONS method is a CORS preflight request used by the browser to check if
+	//  access is allowed by the server.
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusOK)
 		return
@@ -117,38 +119,44 @@ func (app *App) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse form data - handle both multipart/form-data and application/x-www-form-urlencoded
-	contentType := r.Header.Get("Content-Type")
-	fmt.Printf("Content-Type: %s\n", contentType)
+	
+	var reqData struct {
+    Title      string   `json:"title"`
+    Content    string   `json:"content"`
+    Categories []string `json:"categories"` 
+}
 
-	if strings.HasPrefix(contentType, "multipart/form-data") {
-		if err := r.ParseMultipartForm(32 << 20); err != nil { // 32MB max
-			fmt.Printf("Error parsing multipart form: %v\n", err)
-			http.Error(w, "Error parsing form", http.StatusBadRequest)
-			return
-		}
-	} else {
-		if err := r.ParseForm(); err != nil {
-			fmt.Printf("Error parsing form: %v\n", err)
-			http.Error(w, "Error parsing form", http.StatusBadRequest)
-			return
-		}
-	}
+if err := json.NewDecoder(r.Body).Decode(&reqData); err != nil {
+    http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+    return
+}
 
-	title := strings.TrimSpace(r.FormValue("title"))
-	content := strings.TrimSpace(r.FormValue("content"))
-	categoriesStr := r.FormValue("categories")
 
-	fmt.Printf("Creating post - Title: '%s', Content length: %d, Categories: '%s'\n", title, len(content), categoriesStr)
+reqData.Title = strings.TrimSpace(reqData.Title)
+reqData.Content = strings.TrimSpace(reqData.Content)
 
-	if title == "" {
-		http.Error(w, "Title cannot be empty", http.StatusBadRequest)
-		return
-	}
-	if content == "" {
-		http.Error(w, "Content cannot be empty", http.StatusBadRequest)
-		return
-	}
+if reqData.Title == "" {
+    http.Error(w, "Title cannot be empty", http.StatusBadRequest)
+    return
+}
+if reqData.Content == "" {
+    http.Error(w, "Content cannot be empty", http.StatusBadRequest)
+    return
+}
+
+
+var categoryIDs []int
+for _, catName := range reqData.Categories {
+    catName = strings.TrimSpace(catName)
+    if catName != "" {
+        catID, err := helpers.GetCategoryIDByName(app.DB, catName)
+        if err != nil {
+            http.Error(w, fmt.Sprintf("Error processing category: %v", err), http.StatusInternalServerError)
+            return
+        }
+        categoryIDs = append(categoryIDs, catID)
+    }
+}
 
 	// Get user from session
 	userID, _, err := helpers.GetUserFromSession(r, app.DB)
@@ -157,26 +165,8 @@ func (app *App) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse categories
-	var categoryIDs []int
-	if categoriesStr != "" {
-		categoryNames := strings.Split(categoriesStr, ",")
-		for _, catName := range categoryNames {
-			catName = strings.TrimSpace(catName)
-			if catName != "" {
-				catID, err := helpers.GetCategoryIDByName(app.DB, catName)
-				if err != nil {
-					fmt.Printf("Error processing category %s: %v\n", catName, err)
-					http.Error(w, fmt.Sprintf("Error processing category: %v", err), http.StatusInternalServerError)
-					return
-				}
-				categoryIDs = append(categoryIDs, catID)
-			}
-		}
-	}
-
 	// Create post
-	postID, err := helpers.AddPost(app.DB, userID, title, content, categoryIDs)
+	postID, err := helpers.AddPost(app.DB, userID, reqData.Title, reqData.Content, categoryIDs)
 	if err != nil {
 		fmt.Printf("Error creating post: %v\n", err)
 		http.Error(w, fmt.Sprintf("Error creating post: %v", err), http.StatusBadRequest)
@@ -212,22 +202,21 @@ func (app *App) AddCommentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse form data - handle both multipart/form-data and application/x-www-form-urlencoded
-	contentType := r.Header.Get("Content-Type")
-	if strings.HasPrefix(contentType, "multipart/form-data") {
-		if err := r.ParseMultipartForm(32 << 20); err != nil { // 32MB max
-			http.Error(w, "Error parsing form", http.StatusBadRequest)
-			return
-		}
-	} else {
-		if err := r.ParseForm(); err != nil {
-			http.Error(w, "Error parsing form", http.StatusBadRequest)
-			return
-		}
+	// read json from front-end
+
+	var reqData struct {
+		PostID  string `json:"post_id"`
+		Content string `json:"content"`
 	}
 
-	postIDStr := r.FormValue("post_id")
-	content := strings.TrimSpace(r.FormValue("content"))
+	if err := json.NewDecoder(r.Body).Decode(&reqData); err != nil {
+		http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+		return
+	}
+
+	postIDStr := strings.TrimSpace(reqData.PostID)
+	content := strings.TrimSpace(reqData.Content)
+
 
 	if postIDStr == "" {
 		http.Error(w, "Post ID is required", http.StatusBadRequest)

@@ -44,17 +44,17 @@ export function creatPost() {
 }
 
 async function submitPost(form) {
-    // Get form values
+    // get value from form
     const title = form.querySelector('#title-input').value.trim()
     const content = form.querySelector('#content-input').value.trim()
     
-    // Get selected categories
+
     const categories = []
     form.querySelectorAll('input[name="categories"]:checked').forEach(checkbox => {
         categories.push(checkbox.value)
     })
     
-    // Validate
+    // Validation
     if (!title) {
         alert('Please enter a title')
         return
@@ -63,17 +63,21 @@ async function submitPost(form) {
         alert('Please enter content')
         return
     }
-    
-    // Create form data
-    const formData = new FormData()
-    formData.append('title', title)
-    formData.append('content', content)
-    formData.append('categories', categories.join(','))
+
+    //  JSON payload
+    const payload = {
+        title,
+        content,
+        categories 
+    }
 
     try {
         const response = await fetch('/api/posts/create', {
             method: 'POST',
-            body: formData
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
         })
 
         if (!response.ok) {
@@ -86,19 +90,14 @@ async function submitPost(form) {
         const post = await response.json()
         console.log('Post created successfully:', post)
 
-        // Close the form
         const createPostDiv = document.querySelector('.creatPostDiv')
-        if (createPostDiv) {
-            createPostDiv.remove()
-        }
+        if (createPostDiv) createPostDiv.remove()
 
-        // Show main content again
         const main = document.querySelector('main')
         const tryt = document.querySelector('.try_ws')
         if (main) main.style.visibility = 'visible'
         if (tryt) tryt.style.visibility = 'visible'
-        
-        // Reload posts
+
         loadPosts()
     } catch (error) {
         console.error('Error creating post:', error)
