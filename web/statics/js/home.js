@@ -365,7 +365,6 @@ export async function loadPosts(category = '') {
         }
         
         const posts = await response.json()
-        console.log(posts.length, 'initial posts loaded')
         
         // Filter by category if specified
         let filteredPosts = posts
@@ -421,15 +420,6 @@ headerCheck().then(data => {
           const lgout = document.querySelector('.LogoutH')
 
    
-    // if (data.heading==true) {
-    //     lgn?.style.display = 'none'
-    //     rgst?.style.display = 'none'
-    // }
-
-    // if (data.heading==false) {
-    //     creatpst?.style.display = 'none'
-    //     lgout?.style.display = 'none'
-    // }
 })
 
 

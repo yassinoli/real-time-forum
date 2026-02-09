@@ -20,7 +20,6 @@ export const handleLoginFront = async () => {
     else userCredentials.nickName = identifier
     userCredentials.password = password
 
-    console.log(userCredentials)
 
     try {
         const resp = await fetch("/login", {

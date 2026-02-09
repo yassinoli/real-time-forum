@@ -46,6 +46,7 @@ export const handleregisterFront = async () => {
         }
 
         // Redirect to posts after successful registration
+        // change just the url-path
         window.history.pushState({}, "", "/posts")
         HandleRouting()
 
