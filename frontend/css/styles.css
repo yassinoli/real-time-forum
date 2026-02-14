@@ -776,15 +776,3 @@ form.form-container button:hover {
     background-color: var(--secondary-color);
     margin: 0;
 }
-
-.tails {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    position: absolute;
-    bottom: 2px;
-    left: -4px;
-    background-color: #e4e6eb;
-    border: none;
-    transform: rotate(45deg);
-}

@@ -52,10 +52,10 @@ func main() {
 	http.HandleFunc("/login", handlers.LoginHanlder(db))
 	http.HandleFunc("/api/logout", handlers.LogoutHandler(db))
 
-	http.HandleFunc("/api/posts", handlers.GetPostsHandler)
-	http.HandleFunc("/api/post", handlers.GetPostsHandler)
-	http.HandleFunc("/api/posts/create", handlers.CreatePostHandler)
-	http.HandleFunc("/api/comments/add", handlers.AddCommentHandler)
+	http.HandleFunc("/api/posts", handlers.GetPostsHandler(db))
+	http.HandleFunc("/api/post", handlers.GetPostHandler(db))
+	http.HandleFunc("/api/posts/create", handlers.CreatePostHandler(db))
+	http.HandleFunc("/api/comments/add", handlers.AddCommentHandler(db))
 	http.HandleFunc("/api/header-check", handlers.GetHeader(db))
 
 	http.HandleFunc("/statics/", handlers.ServeStatic)

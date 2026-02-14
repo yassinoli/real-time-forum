@@ -2,7 +2,12 @@ import { handleRoot } from "./app.js"
 import { handleLoginFront, initLogin } from "./components/auth/login.js"
 import { handleLogoutFront } from "./components/auth/logout.js"
 import { initRegister, handleregisterFront } from "./components/auth/register.js"
+import { throttledSendMessage } from "./components/chat/messageInput.js"
 import { initPost } from "./components/posts/postPage.js"
+import { handleChatFront } from "./services/websocket.js"
+
+export const mainCont = document.getElementById('main-container')
+export const navBar = document.getElementById('nav-bar')
 
 const routes = {
     "/": handleRoot,
@@ -11,7 +16,7 @@ const routes = {
     "/posts": initPost,
 }
 
-export const renderError = (code, msg, mainCont, navBar) => {
+export const renderError = (code, msg) => {
     navBar.innerHTML = ''
     mainCont.innerHTML = `
         <div class="error-container">
@@ -23,15 +28,13 @@ export const renderError = (code, msg, mainCont, navBar) => {
 }
 
 export const HandleRouting = async () => {
-    const mainCont = document.getElementById('main-container')
-    const navBar = document.getElementById('nav-bar')
 
     const path = window.location.pathname
 
     const initFunc = routes[path]
 
     if (!initFunc) {
-        renderError(404, "Page not found", mainCont, navBar)
+        renderError(404, "Page not found")
         return
     }
 
@@ -43,7 +46,7 @@ export const HandleRouting = async () => {
 
     } catch (error) {
         console.error('Error in route handler:', error)
-        renderError(500, "Something wrong happened", mainCont, navBar)
+        renderError(500, "Something wrong happened")
     }
 }
 
@@ -73,7 +76,6 @@ document.addEventListener("click", (e) => {
     if (e.target.id === 'send-btn') {
         e.preventDefault()
         throttledSendMessage()
-        handleChatFront()
         return
     }
 

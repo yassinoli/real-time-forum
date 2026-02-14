@@ -1,4 +1,5 @@
-import { HandleRouting, renderError } from '../../router.js'
+import { HandleRouting, renderError, mainCont, navBar } from '../../router.js'
+import { request } from '../../services/api.js'
 
 const loginTemplate = () => {
     return `
@@ -46,7 +47,7 @@ const loginTemplate = () => {
     `
 }
 
-export const initLogin = (mainCont, navBar) => {
+export const initLogin = () => {
     navBar.innerHTML = ''
     mainCont.innerHTML = loginTemplate()
 }
@@ -58,49 +59,35 @@ export const handleLoginFront = async () => {
         password: "",
     }
 
-    const identifier = document.getElementById("identifier").value
-    const password = document.getElementById("password").value
+    const errorDiv = document.querySelector(".input-error")
+
+    const identifier = document.getElementById("identifier")?.value
+    const password = document.getElementById("password")?.value
 
     if (!password || !identifier) {
-        document.querySelector(".input-error").textContent = "please fill all the fields"
+        errorDiv.textContent = "Please fill all the fields"
         return
     }
 
-    if (String(identifier).match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) userCredentials.email = identifier
+    if (identifier.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) userCredentials.email = identifier
     else userCredentials.nickName = identifier
     userCredentials.password = password
 
+    const result = await request("/login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(userCredentials)
+    })
 
-    try {
-        const resp = await fetch("/login", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify(userCredentials)
-        })
-
-        const res = await resp.json()
-
-        if (!resp.ok) {
-            if (res.code === 400 || res.code === 401) {
-                const errorDiv = document.querySelector(".input-error")
-                errorDiv.textContent = res.error
-                return
-            }
-
-            if (res.code === 500) {
-                renderError(500, res.Error, document.getElementById('main-container'), document.getElementById('nav-bar'))
-                return
-            }
-        }
-
+    if (result.success) {
         window.history.pushState({}, "", "/posts")
         HandleRouting()
 
-    } catch (err) {
-        console.error(err)
-        const errorDiv = document.querySelector(".input-error")
-        if (errorDiv) {
-            errorDiv.textContent = "failed to login try with a correct information."
-        }
+    } else if ([400, 401].includes(result.code)) {
+        errorDiv.textContent = result.error
+
+    } else {
+        renderError(500, res.error)
     }
+
 }

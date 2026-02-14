@@ -9,3 +9,17 @@ export async function checkAuth() {
         return { loggedIn: false, nickname: '' }
     }
 }
+
+export const throttle = (cb,) => {
+    let timer = null
+
+    return (...args) => {
+        if (timer) return
+
+        cb(...args)
+
+        timer = setTimeout(() => {
+            timer = null
+        }, 500)
+    }
+}

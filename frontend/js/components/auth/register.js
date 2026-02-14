@@ -1,4 +1,5 @@
-import { HandleRouting } from '../../router.js'
+import { HandleRouting, renderError, mainCont, navBar } from '../../router.js'
+import { request } from '../../services/api.js'
 
 const registerTemplate = () => {
     return `
@@ -28,7 +29,7 @@ const registerTemplate = () => {
                         <label for="age">Age:</label>
                         <input type="number" id="age" name="age" required>
                     </div>
-, showCreatePost = true
+                    
                     <div id="gender-container">
                         <label>Gender:</label>
                         <div class="gender-input">
@@ -64,7 +65,7 @@ const registerTemplate = () => {
     `
 }
 
-export const initRegister = (mainCont, navBar) => {
+export const initRegister = () => {
     navBar.innerHTML = ''
     mainCont.innerHTML = registerTemplate()
 }
@@ -73,22 +74,15 @@ export const handleregisterFront = async () => {
     const userData = {}
     const errorDiv = document.querySelector(".input-error")
 
-    const gender = document.querySelector('input[name="gender"]:checked')
-    if (!gender) {
-        errorDiv.textContent = "Please select a gender"
-        return
-    }
-
-    userData.gender = gender.value
-
     const firstName = document.getElementById("firstName")?.value
     const lastName = document.getElementById("lastName")?.value
     const nickName = document.getElementById("nickName")?.value
     const age = document.getElementById("age")?.value
     const email = document.getElementById("email")?.value
     const password = document.getElementById("password")?.value
+    const gender = document.querySelector('input[name="gender"]:checked')
 
-    if (!firstName || !lastName || !nickName || !age || !email || !password) {
+    if (!firstName || !lastName || !nickName || !age || !email || !password || !gender) {
         errorDiv.textContent = "Please fill all fields"
         return
     }
@@ -96,29 +90,26 @@ export const handleregisterFront = async () => {
     userData.firstName = firstName
     userData.lastName = lastName
     userData.nickname = nickName
+    userData.gender = gender.value
     userData.age = Number(age)
     userData.email = email
     userData.password = password
 
-    try {
-        const resp = await fetch("/register", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify(userData)
-        })
+    const result = await request("/register", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(userData)
+    })
 
-        const res = await resp.json()
-
-        if (!resp.ok || res.code !== 200) {
-            errorDiv.textContent = res.error || res.message || "Registration failed"
-            return
-        }
-        
+    if (result.success) {
         window.history.pushState({}, "", "/posts")
         HandleRouting()
-
-    } catch (err) {
-        console.error(err)
-        errorDiv.textContent = "An error occurred. Please try again."
+        
+    } else if ( [400, 409].includes(result.code) ){
+        errorDiv.textContent = result.error
+        
+    } else {
+        renderError(500, result.error)
     }
+
 }

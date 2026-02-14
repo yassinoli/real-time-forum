@@ -16,7 +16,7 @@ const homeTemplate = () => {
 }
 
 export const handleRoot = async () => {
-    const user =  checkAuth()
+    const user =  await checkAuth()
 
     if (user.loggedIn) {
         window.history.pushState({}, "", "/posts")
