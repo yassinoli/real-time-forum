@@ -4,6 +4,7 @@ import (
 	"database/sql"
 
 	"real-time-forum/backend/models"
+	"real-time-forum/backend/repositories/sqlite"
 
 	"github.com/gorilla/websocket"
 )
@@ -11,48 +12,10 @@ import (
 func Connect(clients map[string]*websocket.Conn, db *sql.DB, client models.Client) error {
 	clients[client.NickName] = client.Ws
 
-	rows, err := db.Query(`SELECT nickname, id FROM user WHERE id != ?`, client.ID)
+	users, err := sqlite.SelectOtherUsers(db, clients, client.ID)
 	if err != nil {
 		return err
 	}
-
-	users := []models.OtherClient{}
-
-	for rows.Next() {
-		var u models.OtherClient
-		var id string
-		if err := rows.Scan(&u.NickName, &id); err != nil {
-			return err
-		}
-
-		err := db.QueryRow(`
-				SELECT created_at
-				FROM private_message
-				WHERE (sender_id = ? AND receiver_id = ?)
-				OR (receiver_id = ? AND sender_id = ?)
-				ORDER BY created_at DESC
-				LIMIT 1
-				`, client.ID, id, client.ID, id).Scan(&u.LastChat)
-		if err != nil && err != sql.ErrNoRows {
-			return err
-		}
-
-		err = db.QueryRow(`
-    			SELECT COUNT(*)
-    			FROM private_message
-    			WHERE sender_id = ?
-      			AND receiver_id = ?
-     			AND is_read = FALSE
-				`, id, client.ID).Scan(&u.Pending_Message)
-		if err != nil && err != sql.ErrNoRows {
-			return err
-		}
-
-		_, u.Online = clients[u.NickName]
-		users = append(users, u)
-	}
-
-	rows.Close()
 
 	client.Ws.WriteJSON(map[string]any{
 		"event":    "init",
@@ -70,6 +33,27 @@ func Connect(clients map[string]*websocket.Conn, db *sql.DB, client models.Clien
 			"newcommers": client.NickName,
 		})
 	}
+	return nil
+}
+
+func Reconnect(clients map[string]*websocket.Conn, db *sql.DB, nickname string) error {
+	var user_id string
+	err := db.QueryRow(`SELECT id FROM user WHERE nickname = ?`, nickname).Scan(&user_id)
+	if err != nil {
+		return err
+	}
+
+	users, err := sqlite.SelectOtherUsers(db, clients, user_id)
+	if err != nil {
+		return err
+	}
+
+	clients[nickname].WriteJSON(map[string]any{
+		"event":    "init",
+		"users":    users,
+		"nickname": nickname,
+	})
+
 	return nil
 }
 

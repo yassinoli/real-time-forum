@@ -87,7 +87,7 @@ export const handleLoginFront = async () => {
         errorDiv.textContent = result.error
 
     } else {
-        renderError(500, res.error)
+        renderError(result.code, result.error)
     }
 
 }

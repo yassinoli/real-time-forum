@@ -26,6 +26,13 @@ func Broadcast(db *sql.DB, hub *models.Hub) {
 		case msg := <-hub.Broadcast:
 
 			switch msg.Type {
+			case "reconnect":
+				err := Reconnect(clients, db, msg.Sender)
+				if err != nil {
+					fmt.Printf("failed to reconnect user: %v because of:%v\n", msg.Sender, err)
+					continue
+				}
+
 			case "mark_read":
 				err := MarkRead(db, msg.Sender, msg.Receiver)
 				if err != nil {

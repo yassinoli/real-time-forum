@@ -1,5 +1,5 @@
-import { currentUser, messages} from "../../services/websocket.js";
-import { createUserNode } from "./userList.js";
+import { currentUser, messages } from "../../services/websocket.js";
+import { createUserNode, updateOnlineMarker } from "./userList.js";
 
 export class Message {
     constructor(content, type, sender, receiver, time) {
@@ -47,7 +47,8 @@ export class Message {
         timeEl.classList.add("fb-message-time")
         timeEl.textContent = timeStr
 
-        bubble.append(this.type === "me" ? "You:" : this.sender + ":", content, timeEl)
+        bubble.append(content, timeEl)
+        if (this.type !== "me") bubble.prepend(this.sender)
         message.append(bubble)
 
         return message
@@ -80,12 +81,6 @@ const openChat = (user) => {
     const header = createUserNode(user, { clickable: false, receiver: true })
     header.removeAttribute("id")
 
-    const closeBtn = document.createElement("button")
-    closeBtn.classList.add("close-chat-btn")
-    closeBtn.textContent = "X"
-    closeBtn.addEventListener("click", closeChat)
-    header.append(closeBtn)
-
     chatCont.prepend(header)
     chatCont.style.display = "flex"
 
@@ -94,9 +89,9 @@ const openChat = (user) => {
     messages.isLoading = false
     const cont = document.getElementById("messages")
     cont.innerHTML = `<div id="sentinel"></div>`
+
     observer.observe(document.getElementById("sentinel"))
 }
-
 
 const switchChat = (user) => {
     const chatCont = document.querySelector(".chat-container")
@@ -112,13 +107,13 @@ const switchChat = (user) => {
 
     receiverEl.textContent = user.nickname
     updateOnlineMarker(chatCont.firstElementChild, user.online)
-
 }
 
 const closeChat = () => {
-const chatCont = document.querySelector(".chat-container")
+    const chatCont = document.querySelector(".chat-container")
 
     chatCont.firstElementChild?.remove()
+    chatCont.querySelector("#messages").innerHTML = ``
     chatCont.style.display = "none"
 
     observer.disconnect()
@@ -134,7 +129,6 @@ export const addMessage = (msg, history = false) => {
         messagesContainer.insertBefore(message.create(), messagesContainer.children[1])
     } else {
         messagesContainer.append(message.create())
-        messagesContainer.scrollTo({ top: messagesContainer.scrollHeight, behavior: 'smooth' })
     }
 }
 
@@ -158,3 +152,59 @@ const observer = new IntersectionObserver((entries) => {
     }))
 
 })
+
+export const showOldMessage = (oldMessages) => {
+    const cont = document.getElementById("messages")
+    const notFull = (cont.scrollHeight <= cont.clientHeight) && messages.hasmore
+    oldMessages.forEach(msg => addMessage(msg, true))
+
+    const prevHeight = cont.scrollTop
+
+    messages.isLoading = false
+    if (oldMessages.length === 0) messages.hasmore = false
+    messages.currentOffset += oldMessages.length
+
+    if (notFull) cont.scrollTop = cont.scrollHeight
+    else cont.scrollTop = prevHeight
+
+    if (notFull) {
+        messages.isLoading = true
+
+        currentUser.socket.send(JSON.stringify({
+            type: "load_history",
+            receiver: document.getElementById("receiver").textContent,
+            offset: messages.currentOffset
+        }))
+    }
+}
+
+export const updateNotification = (list, senderName) => {
+    const senderEl = document.getElementById(senderName)
+    const oldNotif = senderEl.querySelector(".msg-notif")
+    const notifNumber = oldNotif ? Number(oldNotif.textContent) : 0
+
+    senderEl.remove()
+
+    const newUserEl = createUserNode(
+        { nickname: senderName, online: true },
+        { hasChat: true, pending: notifNumber + 1 }
+    )
+
+    list.prepend(newUserEl)
+    list.scrollTo({ top: 0, behavior: "smooth" })
+}
+
+export const showNewMessage = (message, list) => {
+    addMessage(message)
+
+    currentUser.socket.send(JSON.stringify({
+        type: "mark_read",
+        sender: currentUser.nickName,
+        receiver: message.sender
+    }))
+
+    document.getElementById(message.sender).remove()
+    const newEl = createUserNode({ nickname: message.sender, online: true }, { hasChat: true })
+    list.prepend(newEl)
+
+}

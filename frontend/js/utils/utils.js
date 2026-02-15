@@ -10,7 +10,7 @@ export async function checkAuth() {
     }
 }
 
-export const throttle = (cb,) => {
+export const throttle = (cb, delay) => {
     let timer = null
 
     return (...args) => {
@@ -20,6 +20,6 @@ export const throttle = (cb,) => {
 
         timer = setTimeout(() => {
             timer = null
-        }, 500)
+        }, delay)
     }
 }

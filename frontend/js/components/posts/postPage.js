@@ -51,6 +51,7 @@ const createHeader = (auth) => {
                 <div class="user-profile-container">
                     <div class="user-profile-avatar" id="user-profile-avatar">
                         <img src="./statics/assets/user.png" alt="User">
+                        <div class="online-marker"></div>
                     </div>
                     <div class="user-profile-menu" id="user-profile-menu">
                         <div class="user-profile-name">${auth.nickname}</div>

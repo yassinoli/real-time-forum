@@ -4,7 +4,6 @@ import { handleLogoutFront } from "./components/auth/logout.js"
 import { initRegister, handleregisterFront } from "./components/auth/register.js"
 import { throttledSendMessage } from "./components/chat/messageInput.js"
 import { initPost } from "./components/posts/postPage.js"
-import { handleChatFront } from "./services/websocket.js"
 
 export const mainCont = document.getElementById('main-container')
 export const navBar = document.getElementById('nav-bar')
@@ -86,4 +85,9 @@ document.addEventListener("click", (e) => {
         HandleRouting()
         return
     }
+})
+
+
+document.addEventListener('focus', e => {
+    console.log(e)
 })

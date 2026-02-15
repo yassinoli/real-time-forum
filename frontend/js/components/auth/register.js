@@ -109,7 +109,7 @@ export const handleregisterFront = async () => {
         errorDiv.textContent = result.error
         
     } else {
-        renderError(500, result.error)
+        renderError(result.error, result.error)
     }
 
 }

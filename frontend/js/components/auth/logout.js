@@ -1,29 +1,26 @@
-import { HandleRouting } from "../../router.js"
-// import { currentUser } from "./chat.js"
+import { HandleRouting, renderError } from "../../router.js"
+import { request } from "../../services/api.js"
+import { currentUser } from "../../services/websocket.js"
 
 export const handleLogoutFront = async () => {
-    try {
-        const resp = await fetch("/api/logout", {
-            method: "POST",
-            credentials: 'include',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        })
-
-        // if (currentUser.socket) {
-        //     currentUser.socket.close()
-        //     currentUser.socket = null
-        // }
-
-        if (!resp.ok) {
-            
+    const result = await request("/api/logout", {
+        method: "POST",
+        credentials: 'include',
+        headers: {
+            'Content-Type': 'application/json'
         }
+    })
 
-        window.history.pushState({}, "", "/")
-        HandleRouting()
-
-    } catch (err) {
-        console.error('Failed to logout:', err)
+    if (!result.success) {
+        renderError(result.code, result.error)
+        return
     }
+
+    if (currentUser.socket) {
+        currentUser.socket.close()
+        currentUser.socket = null
+    }
+
+    window.history.pushState({}, "", "/")
+    HandleRouting()
 }
