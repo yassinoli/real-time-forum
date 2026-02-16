@@ -1,13 +1,13 @@
-import { currentUser, messages } from "../../services/websocket.js";
-import { createUserNode, updateOnlineMarker } from "./userList.js";
+import { currentUser, messages } from "../../services/websocket.js"
+import { createUserNode, updateOnlineMarker } from "./userList.js"
 
 export class Message {
     constructor(content, type, sender, receiver, time) {
-        this.content = content;
-        this.type = type;
+        this.content = content
+        this.type = type
         this.sender = sender
-        this.receiver = receiver;
-        this.time = new Date(time);
+        this.receiver = receiver
+        this.time = new Date(time)
     }
 
     create() {
@@ -55,30 +55,70 @@ export class Message {
     }
 }
 
-export const SwapChat = (user) => {
-    const receiverEl = document.getElementById("receiver")
-    const userEL = document.getElementById(user.nickname)
-    if (userEL.children.length === 3) userEL.lastChild.remove()
+const observer = new IntersectionObserver((entries) => {
+    const entry = entries[0]
 
-    if (!receiverEl) {
-        openChat(user)
+    if (messages.isLoading || !entry.isIntersecting) return
+
+    if (!messages.hasmore) {
+        observer.disconnect()
         return
     }
 
-    const currentReceiver = receiverEl.textContent
+    messages.isLoading = true
+    currentUser.socket.send(JSON.stringify({
+        sender: currentUser.nickName,
+        receiver: document.getElementById('receiver').textContent,
+        type: "load_history",
+        offset: messages.currentOffset
+    }))
 
-    if (currentReceiver === user.nickname) {
-        closeChat()
+})
+
+const createTypingElement = () => {
+    const typing = document.createElement("div")
+    typing.innerHTML = `
+        <div class="ball"></div>
+        <div class="ball"></div>
+        <div class="ball"></div>
+    `
+    typing.classList.add("typing")
+
+    return typing
+}
+
+export const addTyping = (typer) => {
+    const typingEl = createTypingElement()
+
+    const receiver = document.getElementById("receiver")
+    if (receiver && receiver.textContent === typer) {
+        document.getElementById("messages").append(typingEl)
         return
     }
 
-    switchChat(user)
+    const typerEl = document.getElementById(typer)
+    if (typerEl.querySelector(".msg-notif")) {
+        typerEl.insertBefore(typingEl, typerEl.lastChild)
+        return
+    }
+
+    typerEl.append(typingEl)
+}
+
+export const removeTyping = (typer) => {
+    const receiver = document.getElementById("receiver")
+    if (receiver && receiver.textContent === typer) {
+        document.getElementById("messages").querySelector(".typing")?.remove()
+        return
+    }
+
+    document.getElementById(typer).querySelector(".typing")?.remove()
 }
 
 const openChat = (user) => {
     const chatCont = document.querySelector(".chat-container")
 
-    const header = createUserNode(user, { clickable: false, receiver: true })
+    const header = createUserNode(user, { clickable: true, receiver: true })
     header.removeAttribute("id")
 
     chatCont.prepend(header)
@@ -87,8 +127,10 @@ const openChat = (user) => {
     messages.currentOffset = 0
     messages.hasmore = true
     messages.isLoading = false
+
     const cont = document.getElementById("messages")
     cont.innerHTML = `<div id="sentinel"></div>`
+
 
     observer.observe(document.getElementById("sentinel"))
 }
@@ -112,13 +154,32 @@ const switchChat = (user) => {
 const closeChat = () => {
     const chatCont = document.querySelector(".chat-container")
 
-    chatCont.firstElementChild?.remove()
+    chatCont.querySelector(".user-data")?.remove()
     chatCont.querySelector("#messages").innerHTML = ``
     chatCont.style.display = "none"
 
     observer.disconnect()
 }
 
+export const SwapChat = (user) => {
+    const receiverEl = document.getElementById("receiver")
+    const userEL = document.getElementById(user.nickname)
+    if (userEL.children.length === 3) userEL.lastChild.remove()
+
+    if (!receiverEl) {
+        openChat(user)
+        return
+    }
+
+    const currentReceiver = receiverEl.textContent
+
+    if (currentReceiver === user.nickname) {
+        closeChat()
+        return
+    }
+
+    switchChat(user)
+}
 
 export const addMessage = (msg, history = false) => {
     const type = msg.sender === currentUser.nickName ? "me" : "other"
@@ -131,27 +192,6 @@ export const addMessage = (msg, history = false) => {
         messagesContainer.append(message.create())
     }
 }
-
-
-const observer = new IntersectionObserver((entries) => {
-    const entry = entries[0]
-
-    if (messages.isLoading || !entry.isIntersecting) return
-
-    if (!messages.hasmore) {
-        observer.disconnect()
-        return
-    }
-
-    messages.isLoading = true
-    currentUser.socket.send(JSON.stringify({
-        sender: currentUser.nickName,
-        receiver: document.getElementById('receiver').textContent,
-        type: "load_history",
-        offset: messages.currentOffset
-    }))
-
-})
 
 export const showOldMessage = (oldMessages) => {
     const cont = document.getElementById("messages")
@@ -178,6 +218,21 @@ export const showOldMessage = (oldMessages) => {
     }
 }
 
+export const showNewMessage = (message, list) => {
+    addMessage(message)
+
+    currentUser.socket.send(JSON.stringify({
+        type: "mark_read",
+        sender: currentUser.nickName,
+        receiver: message.sender
+    }))
+
+    document.getElementById(message.sender).remove()
+    const newEl = createUserNode({ nickname: message.sender, online: true }, { hasChat: true })
+    list.prepend(newEl)
+
+}
+
 export const updateNotification = (list, senderName) => {
     const senderEl = document.getElementById(senderName)
     const oldNotif = senderEl.querySelector(".msg-notif")
@@ -192,19 +247,4 @@ export const updateNotification = (list, senderName) => {
 
     list.prepend(newUserEl)
     list.scrollTo({ top: 0, behavior: "smooth" })
-}
-
-export const showNewMessage = (message, list) => {
-    addMessage(message)
-
-    currentUser.socket.send(JSON.stringify({
-        type: "mark_read",
-        sender: currentUser.nickName,
-        receiver: message.sender
-    }))
-
-    document.getElementById(message.sender).remove()
-    const newEl = createUserNode({ nickname: message.sender, online: true }, { hasChat: true })
-    list.prepend(newEl)
-
 }

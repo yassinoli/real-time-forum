@@ -3,6 +3,7 @@ import { handleLoginFront, initLogin } from "./components/auth/login.js"
 import { handleLogoutFront } from "./components/auth/logout.js"
 import { initRegister, handleregisterFront } from "./components/auth/register.js"
 import { throttledSendMessage } from "./components/chat/messageInput.js"
+import { creatPost } from "./components/posts/postCreate.js"
 import { initPost } from "./components/posts/postPage.js"
 
 export const mainCont = document.getElementById('main-container')
@@ -52,7 +53,7 @@ export const HandleRouting = async () => {
 window.onpopstate = HandleRouting
 HandleRouting()
 
-document.addEventListener("click", (e) => {
+document.addEventListener("click", async (e) => {
     if (e.target.matches('a.link') || e.target.closest('a.link')) {
         e.preventDefault()
         const link = e.target.closest('a.link') || e.target
@@ -72,22 +73,22 @@ document.addEventListener("click", (e) => {
         return
     }
 
+    if (e.target.id === 'logout-btn-nav') {
+        e.preventDefault()
+        handleLogoutFront()
+        return
+    }
+
+
     if (e.target.id === 'send-btn') {
         e.preventDefault()
         throttledSendMessage()
         return
     }
 
-    if (e.target.id === 'logout-btn' || e.target.id === 'logout-btn-nav') {
-        e.preventDefault()
-        handleLogoutFront()
-        window.history.pushState({}, "", "/")
-        HandleRouting()
-        return
+    if (e.target.id === 'create-post-btn') {
+        document.querySelector('main').style.visibility = 'hidden'
+        creatPost()
     }
-})
 
-
-document.addEventListener('focus', e => {
-    console.log(e)
 })

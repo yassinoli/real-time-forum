@@ -1,13 +1,12 @@
 import { setupEventListeners } from "../components/chat/messageInput.js"
-import { showNewMessage, showOldMessage, updateNotification } from "../components/chat/messageWindow.js"
+import { addTyping, removeTyping, showNewMessage, showOldMessage, updateNotification } from "../components/chat/messageWindow.js"
 import { initUserList, insertInList, removeMarker, updateCurrentEl } from "../components/chat/userList.js"
 
 export const currentUser = {
     nickName: "",
     socket: null,
+    isTyping: false,
 }
-
-requestAnimationFrame
 
 export const messages = {
     hasmore: true,
@@ -82,9 +81,13 @@ export const handleChatFront = () => {
                 }
 
                 case "typing": {
+                    addTyping(data.typer)
+                    break
                 }
 
                 case "stop-typing": {
+                    removeTyping(data.typer)
+                    break
                 }
             }
         } catch (error) {

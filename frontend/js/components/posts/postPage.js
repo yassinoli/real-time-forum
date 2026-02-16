@@ -77,38 +77,6 @@ export const initPost = async () => {
         loadPosts()
         handleChatFront()
 
-        // Setup create post button
-        const createPostBtn = document.getElementById('create-post-btn')
-        if (createPostBtn) {
-            createPostBtn.addEventListener('click', () => {
-                const main = document.querySelector('main')
-                if (main) main.style.visibility = 'hidden'
-                creatPost()
-            })
-        }
-
-        const userProfile = document.getElementById('user-profile-avatar')
-        const userMenu = document.getElementById('user-profile-menu')
-        if (userProfile && userMenu) {
-            userProfile.addEventListener('mouseenter', () => {
-                userMenu.style.display = 'block'
-            })
-            userProfile.addEventListener('mouseleave', () => {
-                // Delay to allow clicking logout
-                setTimeout(() => {
-                    if (!userMenu.matches(':hover')) {
-                        userMenu.style.display = 'none'
-                    }
-                }, 200)
-            })
-            userMenu.addEventListener('mouseenter', () => {
-                userMenu.style.display = 'block'
-            })
-            userMenu.addEventListener('mouseleave', () => {
-                userMenu.style.display = 'none'
-            })
-        }
-
         // Setup logout button
         const logoutBtn = document.getElementById('logout-btn-nav')
         if (logoutBtn) {

@@ -7,7 +7,7 @@ const registerTemplate = () => {
             <div class="auth-card">
                 <h1>Register</h1>
 
-                <div class="form-container register">
+                <form class="form-container register">
                     <div class="input-error"></div>
 
                     <div class="form-row">
@@ -59,7 +59,7 @@ const registerTemplate = () => {
                     <p>You already have an account?
                         <a href="/login" class="link">Sign in</a>
                     </p>
-                </div>
+                </form>
             </div>
         </div>
     `
