@@ -2,11 +2,12 @@ package utils
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"real-time-forum/backend/models"
 )
+
+var rsps models.Resp
 
 func Respond(w http.ResponseWriter, resp *models.Resp) {
 	w.Header().Set("Content-Type", "application/json")
@@ -14,8 +15,9 @@ func Respond(w http.ResponseWriter, resp *models.Resp) {
 
 	err := json.NewEncoder(w).Encode(&resp)
 	if err != nil {
-		fmt.Println("error encoding the body: ", err)
-		http.Error(w, "Something wrong happened. Please try later", 500)
+		rsps.Code = 500
+		rsps.Error = "Something wrong happened. Please try later"
+		Respond(w, &rsps)
 		return
 	}
 }

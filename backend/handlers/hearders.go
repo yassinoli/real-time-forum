@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+
+	"real-time-forum/backend/utils"
 )
 
 // GetUserFromSession gets the user ID and nickname from the session cookie
@@ -40,10 +42,12 @@ func GetHeader(db *sql.DB) func(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			rsps.Code = 405
+			rsps.Error = "Method not allowed"
+			utils.Respond(w, &rsps)
 			return
 		}
-		
+
 		// Check if user is logged in and get nickname
 		_, nickname, err := GetUserFromSession(r, db)
 		loggedIn := err == nil

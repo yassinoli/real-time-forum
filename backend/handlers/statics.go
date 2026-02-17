@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"os"
 	"strings"
+
+	"real-time-forum/backend/utils"
 )
 
 func ServeStatic(w http.ResponseWriter, r *http.Request) {
@@ -17,7 +19,9 @@ func ServeStatic(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if file.IsDir() {
-		http.Error(w, "acess denied", http.StatusUnauthorized)
+		rsps.Code = 401
+		rsps.Error = "acess denied"
+		utils.Respond(w, &rsps)
 		return
 	}
 

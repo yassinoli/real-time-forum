@@ -11,13 +11,15 @@ import (
 	"time"
 
 	"real-time-forum/backend/models"
+	"real-time-forum/backend/utils"
 
 	"github.com/gofrs/uuid"
 )
-
+var rsps models.Resp
 // GetPostsHandler returns paginated posts as JSON
 func GetPostsHandler(db *sql.DB) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		
 		// The OPTIONS method is a CORS preflight request used by the browser to check if
 		//  access is allowed by the server.
 		if r.Method == http.MethodOptions {
@@ -26,14 +28,18 @@ func GetPostsHandler(db *sql.DB) func(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			rsps.Code = 405
+			rsps.Error = "Method not allowed"
+			utils.Respond(w, &rsps)
 			return
 		}
 
 		// Check authentication
 		_, _, err := GetUserFromSession(r, db)
 		if err != nil {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			rsps.Code = 401
+			rsps.Error = "Unauthorized"
+			utils.Respond(w,&rsps)
 			return
 		}
 
@@ -55,8 +61,9 @@ func GetPostsHandler(db *sql.DB) func(w http.ResponseWriter, r *http.Request) {
 
 		posts, err := GetAllPosts(db, offset, limit)
 		if err != nil {
-			fmt.Printf("Error fetching posts: %v\n", err)
-			http.Error(w, fmt.Sprintf("Error fetching posts: %v", err), http.StatusInternalServerError)
+			rsps.Code = 500
+			rsps.Error = fmt.Sprintf("Error fetching posts: %v", err)
+			utils.Respond(w,&rsps)
 			return
 		}
 
@@ -74,27 +81,34 @@ func GetPostHandler(db *sql.DB) func(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			rsps.Code = 400
+			rsps.Error =  "Method not allowed"
+			utils.Respond(w,&rsps)
 			return
 		}
 
 		// Check authentication
 		_, _, err := GetUserFromSession(r, db)
 		if err != nil {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			rsps.Code = 401
+			rsps.Error = "Unauthorized"
+			utils.Respond(w,&rsps)
 			return
 		}
 
 		postIDStr := r.URL.Query().Get("id")
 		if postIDStr == "" {
-			http.Error(w, "Post ID is required", http.StatusBadRequest)
+			rsps.Code = 400
+			rsps.Error = "Post ID is required"
+			utils.Respond(w,&rsps)
 			return
 		}
 
 		post, err := GetPostByID(db, postIDStr)
 		if err != nil {
-			fmt.Printf("Error fetching post %s: %v\n", postIDStr, err)
-			http.Error(w, fmt.Sprintf("Post not found: %v", err), http.StatusNotFound)
+			rsps.Code = 404
+			rsps.Error =  fmt.Sprintf("Post not found: %v", err)
+			utils.Respond(w,&rsps)
 			return
 		}
 

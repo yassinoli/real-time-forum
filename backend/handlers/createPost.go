@@ -6,10 +6,14 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+
+	"real-time-forum/backend/models"
+	"real-time-forum/backend/utils"
 )
 
 // CreatePostHandler handles post creation
 func CreatePostHandler(db *sql.DB) func(w http.ResponseWriter, r *http.Request) {
+	var rsps models.Resp
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)
@@ -17,7 +21,9 @@ func CreatePostHandler(db *sql.DB) func(w http.ResponseWriter, r *http.Request) 
 		}
 
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			rsps.Code = 400
+			rsps.Error = "Method not allowed"
+			utils.Respond(w, &rsps)
 			return
 		}
 
@@ -28,7 +34,9 @@ func CreatePostHandler(db *sql.DB) func(w http.ResponseWriter, r *http.Request) 
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&reqData); err != nil {
-			http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+			rsps.Code = 400
+			rsps.Error = "invalid json body"
+			utils.Respond(w, &rsps)
 			return
 		}
 
@@ -36,11 +44,16 @@ func CreatePostHandler(db *sql.DB) func(w http.ResponseWriter, r *http.Request) 
 		reqData.Content = strings.TrimSpace(reqData.Content)
 
 		if reqData.Title == "" {
-			http.Error(w, "Title cannot be empty", http.StatusBadRequest)
+			rsps.Code = 400
+			rsps.Error = "Title cannot be empty"
+			utils.Respond(w, &rsps)
 			return
 		}
 		if reqData.Content == "" {
-			http.Error(w, "Content cannot be empty", http.StatusBadRequest)
+			rsps.Code = 400
+			rsps.Error = "content cannot be empty"
+			utils.Respond(w, &rsps)
+
 			return
 		}
 
@@ -50,7 +63,9 @@ func CreatePostHandler(db *sql.DB) func(w http.ResponseWriter, r *http.Request) 
 			if catName != "" {
 				catID, err := GetCategoryIDByName(db, catName)
 				if err != nil {
-					http.Error(w, fmt.Sprintf("Error processing category: %v", err), http.StatusInternalServerError)
+					rsps.Code = 500
+					rsps.Error = fmt.Sprintf("Error processing category: %v", err)
+					utils.Respond(w, &rsps)
 					return
 				}
 				categoryIDs = append(categoryIDs, catID)
@@ -60,15 +75,18 @@ func CreatePostHandler(db *sql.DB) func(w http.ResponseWriter, r *http.Request) 
 		// Get user from session
 		userID, _, err := GetUserFromSession(r, db)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusUnauthorized)
+			rsps.Code = 401
+			rsps.Error = err.Error()
+			utils.Respond(w,&rsps)
 			return
 		}
 
 		// Create post
 		postID, err := AddPost(db, userID, reqData.Title, reqData.Content, categoryIDs)
 		if err != nil {
-			fmt.Printf("Error creating post: %v\n", err)
-			http.Error(w, fmt.Sprintf("Error creating post: %v", err), http.StatusBadRequest)
+			rsps.Code = 400
+			rsps.Error = fmt.Sprintf("Error creating post: %v", err)
+			utils.Respond(w,&rsps)
 			return
 		}
 
@@ -77,8 +95,9 @@ func CreatePostHandler(db *sql.DB) func(w http.ResponseWriter, r *http.Request) 
 		// Return the created post
 		post, err := GetPostByID(db, postID)
 		if err != nil {
-			fmt.Printf("Error fetching created post: %v\n", err)
-			http.Error(w, fmt.Sprintf("Error fetching created post: %v", err), http.StatusInternalServerError)
+			rsps.Code = 500
+			rsps.Error = fmt.Sprintf("Error fetching post: %v", err)
+			utils.Respond(w,&rsps)
 			return
 		}
 
