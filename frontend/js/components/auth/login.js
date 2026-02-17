@@ -79,15 +79,22 @@ export const handleLoginFront = async () => {
         body: JSON.stringify(userCredentials)
     })
 
-    if (result.success) {
-        window.history.pushState({}, "", "/posts")
-        HandleRouting()
+    switch (result.code) {
+        case 200 || 303: {
+            window.history.pushState({}, "", "/posts")
+            HandleRouting()
+            break
+        }
 
-    } else if ([400, 401].includes(result.code)) {
-        errorDiv.textContent = result.error
+        case 400 || 401: {
+            errorDiv.textContent = result.error
+            break
+        }
 
-    } else {
-        renderError(result.code, result.error)
+        default: {
+            renderError(result.code, result.error)
+            break
+        }
     }
 
 }

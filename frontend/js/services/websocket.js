@@ -11,7 +11,6 @@ export const currentUser = {
 export const messages = {
     hasmore: true,
     currentOffset: 0,
-    isLoading: false,
 }
 
 export const handleChatFront = () => {
@@ -77,6 +76,10 @@ export const handleChatFront = () => {
 
                 case "leave": {
                     removeMarker(data.left)
+                    if (document.getElementById("receiver").textContent === data.left) {
+                        removeTyping()
+                    }
+
                     break
                 }
 
@@ -86,7 +89,7 @@ export const handleChatFront = () => {
                 }
 
                 case "stop-typing": {
-                    removeTyping(data.typer)
+                    removeTyping()
                     break
                 }
             }
@@ -97,5 +100,6 @@ export const handleChatFront = () => {
 
     currentUser.socket.onclose = () => {
         currentUser.socket = null
+
     }
 }

@@ -17,6 +17,12 @@ func RegisterHandler(db *sql.DB) func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 
 		case http.MethodGet:
+			_, _, err := GetUserFromSession(r, db)
+			if err == nil {
+				http.Redirect(w, r, "/posts", http.StatusSeeOther)
+				return
+			}
+
 			utils.RenderMainpage(w)
 
 		case http.MethodPost:

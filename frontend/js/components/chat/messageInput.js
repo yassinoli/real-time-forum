@@ -9,7 +9,6 @@ const sendMessage = () => {
 
     if (!receiverEl.textContent || !input.value) return
 
-    console.log("hello",Date.now())
     addMessage({ sender: currentUser.nickName, receiver: receiverEl.textContent, content: input.value, time: Date.now() })
 
     const msgContainer = document.getElementById("messages")
@@ -72,6 +71,7 @@ export const setupEventListeners = () => {
         sendTyping()
         debouncedStopTyping()
     })
+
 
 }
 

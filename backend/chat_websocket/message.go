@@ -70,15 +70,18 @@ func GetFirstMessages(clients map[string]*websocket.Conn, db *sql.DB, msg models
 }
 
 func Chat(clients map[string]*websocket.Conn, db *sql.DB, msg models.Message) error {
+	messageID, _ := uuid.NewV4()
+	now := time.Now().UnixMilli()
+	
+	msg.Time = now
+
 	if receiverConn, ok := clients[msg.Receiver]; ok {
 		receiverConn.WriteJSON(map[string]any{
 			"event":   "chat",
 			"message": msg,
+			"time":    now,
 		})
 	}
-
-	messageID, _ := uuid.NewV4()
-	now := time.Now().UnixMilli()
 
 	_, err := db.Exec(`
     INSERT INTO private_message (id, sender_id, receiver_id, content, created_at)

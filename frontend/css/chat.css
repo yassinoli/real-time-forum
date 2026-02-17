@@ -137,52 +137,61 @@
 }
 
 /* ===== TYPING ANIMATION ===== */
-/* ===== TYPING ANIMATION ===== */
 .typing {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 8px;
+    padding: 10px 14px;
     background-color: #e4e6eb;
-    width: 60px;
-    height: 35px;
     border-radius: 18px;
     border-bottom-left-radius: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    padding: 8px 12px;
-    margin-bottom: 8px;
+    max-width: fit-content;
 }
 
-.ball {
-    width: 8px;
-    height: 8px;
+.balls-wrapper {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-evenly;
+}
+
+.typing span {
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+
+.typing .ball {
+    width: 6px;
+    height: 6px;
     border-radius: 50%;
     background-color: var(--secondary-color);
-    animation: typing-bounce 1.4s infinite ease-in-out;
+    animation: typing-dot 1.4s infinite ease-in-out;
 }
 
-.ball:nth-child(1) {
-    animation-delay: 0s;
-}
-
-.ball:nth-child(2) {
+.typing .ball:nth-child(2) {
     animation-delay: 0.2s;
 }
 
-.ball:nth-child(3) {
+.typing .ball:nth-child(3) {
     animation-delay: 0.4s;
 }
 
-@keyframes typing-bounce {
+.typing .ball:nth-child(4) {
+    animation-delay: 0.6s;
+}
+
+@keyframes typing-dot {
 
     0%,
     60%,
     100% {
-        transform: translateY(0);
-        opacity: 0.7;
+        opacity: 0.3;
+        transform: scale(0.8);
     }
 
     30% {
-        transform: translateY(-10px);
         opacity: 1;
+        transform: scale(1.2);
     }
 }

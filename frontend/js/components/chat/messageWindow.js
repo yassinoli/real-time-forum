@@ -1,4 +1,5 @@
 import { currentUser, messages } from "../../services/websocket.js"
+import { throttle } from "../../utils/utils.js"
 import { createUserNode, updateOnlineMarker } from "./userList.js"
 
 export class Message {
@@ -55,67 +56,66 @@ export class Message {
     }
 }
 
-const observer = new IntersectionObserver((entries) => {
-    const entry = entries[0]
-
-    if (messages.isLoading || !entry.isIntersecting) return
-
-    if (!messages.hasmore) {
-        observer.disconnect()
-        return
-    }
-
-    messages.isLoading = true
+const loadMore = throttle(() => {
     currentUser.socket.send(JSON.stringify({
         sender: currentUser.nickName,
         receiver: document.getElementById('receiver').textContent,
         type: "load_history",
         offset: messages.currentOffset
     }))
+}, 500)
 
+const observer = new IntersectionObserver((entries) => {
+    const entry = entries[0]
+
+    if (!entry.isIntersecting) return
+
+    if (!messages.hasmore) {
+        observer.disconnect()
+        return
+    }
+
+    loadMore()
 })
 
-const createTypingElement = () => {
+const createTypingElement = (typer) => {
     const typing = document.createElement("div")
+    const name = document.createElement("span")
+    name.textContent = typer
+
     typing.innerHTML = `
+    <div class= "balls-wrapper">
         <div class="ball"></div>
         <div class="ball"></div>
         <div class="ball"></div>
+    </div>
     `
     typing.classList.add("typing")
+    typing.prepend(name)
 
     return typing
 }
 
 export const addTyping = (typer) => {
-    const typingEl = createTypingElement()
+    const typingEl = createTypingElement(typer)
 
     const receiver = document.getElementById("receiver")
     if (receiver && receiver.textContent === typer) {
-        document.getElementById("messages").append(typingEl)
-        return
+        const msg = document.getElementById("messages")
+        msg.append(typingEl)
+
+        msg.scrollTo({ top: msg.scrollHeight, behavior: "smooth" })
+
     }
 
-    const typerEl = document.getElementById(typer)
-    if (typerEl.querySelector(".msg-notif")) {
-        typerEl.insertBefore(typingEl, typerEl.lastChild)
-        return
-    }
-
-    typerEl.append(typingEl)
 }
 
-export const removeTyping = (typer) => {
-    const receiver = document.getElementById("receiver")
-    if (receiver && receiver.textContent === typer) {
-        document.getElementById("messages").querySelector(".typing")?.remove()
-        return
-    }
-
-    document.getElementById(typer).querySelector(".typing")?.remove()
+export const removeTyping = () => {
+    document.getElementById("messages").querySelector(".typing")?.remove()
 }
 
 const openChat = (user) => {
+    document.getElementById(user.nickname).querySelector(".typing")?.remove()
     const chatCont = document.querySelector(".chat-container")
 
     const header = createUserNode(user, { clickable: true, receiver: true })
@@ -126,7 +126,6 @@ const openChat = (user) => {
 
     messages.currentOffset = 0
     messages.hasmore = true
-    messages.isLoading = false
 
     const cont = document.getElementById("messages")
     cont.innerHTML = `<div id="sentinel"></div>`
@@ -142,7 +141,6 @@ const switchChat = (user) => {
     observer.disconnect()
     messages.currentOffset = 0
     messages.hasmore = true
-    messages.isLoading = false
     const cont = document.getElementById("messages")
     cont.innerHTML = `<div id="sentinel"></div>`
     observer.observe(document.getElementById("sentinel"))
@@ -200,7 +198,6 @@ export const showOldMessage = (oldMessages) => {
 
     const prevHeight = cont.scrollTop
 
-    messages.isLoading = false
     if (oldMessages.length === 0) messages.hasmore = false
     messages.currentOffset += oldMessages.length
 
@@ -208,8 +205,6 @@ export const showOldMessage = (oldMessages) => {
     else cont.scrollTop = prevHeight
 
     if (notFull) {
-        messages.isLoading = true
-
         currentUser.socket.send(JSON.stringify({
             type: "load_history",
             receiver: document.getElementById("receiver").textContent,
