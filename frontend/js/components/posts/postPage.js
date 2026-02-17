@@ -11,6 +11,20 @@ let currentOffset = 0
 let postsPerPage = 20
 let allPosts = []
 let currentCategory = ''
+let observer = null
+let sentinel = null
+
+function throttle(fn, delay) {
+    let lastCall = 0
+    return function (...args) {
+        const now = Date.now()
+        if (now - lastCall >= delay) {
+            lastCall = now
+            fn.apply(this, args)
+        }
+    }
+}
+
 
 const postsTemplate = () => {
     return `
@@ -74,7 +88,6 @@ export const initPost = async () => {
         document.getElementById('main-container').innerHTML = postsTemplate()
 
         initializePage()
-        loadPosts()
         handleChatFront()
 
         // Setup logout button
@@ -106,14 +119,36 @@ export function initializePage() {
 
 // Setup infinite scroll listener
 function setupInfiniteScroll() {
-    window.addEventListener('scroll', () => {
-        if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 500) {
-            if (!isLoading) {
+    if (!main) return
+
+    // Supprimer ancien observer si existe
+    if (observer) observer.disconnect()
+
+    // Créer le sentinel
+    sentinel = document.createElement('div')
+    sentinel.id = 'scroll-sentinel'
+    sentinel.style.height = '1px'
+    main.appendChild(sentinel)
+
+    // Créer observer
+    observer = new IntersectionObserver(
+        throttle((entries) => {
+            const entry = entries[0]
+
+            if (entry.isIntersecting && !isLoading) {
                 loadMorePosts()
             }
+        }, 500), // throttle 500ms
+        {
+            root: null, // viewport
+            rootMargin: '200px', // précharge avant bas
+            threshold: 0
         }
-    })
+    )
+
+    observer.observe(sentinel)
 }
+
 
 // Load more posts (pagination)
 async function loadMorePosts() {
@@ -157,6 +192,11 @@ async function loadMorePosts() {
     } finally {
         isLoading = false
     }
+    // Replacer le sentinel à la fin
+if (sentinel) {
+    main.appendChild(sentinel)
+}
+
 }
 
 // Display posts in the feed
@@ -173,6 +213,8 @@ function displayPosts(posts) {
 
     if (!posts || posts.length === 0) {
         main.innerHTML = '<p>No posts yet. Be the first to create one!</p>'
+        if (observer) observer.disconnect()
+        if (sentinel) sentinel = null
         return
     }
 
@@ -184,6 +226,8 @@ function displayPosts(posts) {
 
     // Update offset for next load
     currentOffset = posts.length
+    setupInfiniteScroll()
+
 }
 
 // Display a single post
@@ -202,7 +246,7 @@ function displayPost(post) {
 
     let title = document.createElement('h3')
     title.className = 'postTitle'
-    title.textContent = escapeHtml(post.title)
+    title.textContent = post.title
     container.appendChild(title)
 
     let body = document.createElement('div')
