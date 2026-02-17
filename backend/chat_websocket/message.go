@@ -19,9 +19,9 @@ func MarkRead(db *sql.DB, sender, receiver string) error {
 				AND receiver_id = (SELECT id FROM user WHERE nickname = ?)
 				`, receiver, sender)
 	if err != nil {
-		return nil
+		return err
 	}
-	
+
 	return nil
 }
 
@@ -62,10 +62,13 @@ func GetFirstMessages(clients map[string]*websocket.Conn, db *sql.DB, msg models
 	rows.Close()
 
 	if conn, ok := clients[msg.Sender]; ok {
-		conn.WriteJSON(map[string]any{
-			"event":    "history",
-			"messages": messages,
-		})
+		if err := conn.WriteJSON(map[string]any{
+			"event":     "history",
+			"messages":  messages,
+			"requestId": msg.RequestId,
+		}); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -103,11 +106,13 @@ func Chat(clients map[string]*websocket.Conn, db *sql.DB, msg models.Message) er
 		})
 	}
 
-	clients[msg.Sender].WriteJSON(map[string]any{
-		"event":   "own-message",
-		"message": msg,
-		"time":    now,
-	})
+	if senderConn, ok := clients[msg.Sender]; ok {
+		senderConn.WriteJSON(map[string]any{
+			"event":   "own-message",
+			"message": msg,
+			"time":    now,
+		})
+	}
 
 	return nil
 }
@@ -120,10 +125,15 @@ func GetMoreMessage(clients map[string]*websocket.Conn, db *sql.DB, sender, rece
 		return err
 	}
 
+	senderConn, ok := clients[sender]
+	if !ok {
+		return nil
+	}
+
 	client := models.Client{
 		NickName: sender,
 		ID:       user_id,
-		Ws:       clients[sender],
+		Ws:       senderConn,
 	}
 
 	rows, err := db.Query(`SELECT nickname, id FROM user WHERE id != ?`, client.ID)
@@ -169,25 +179,31 @@ func GetMoreMessage(clients map[string]*websocket.Conn, db *sql.DB, sender, rece
 
 	rows.Close()
 
-	client.Ws.WriteJSON(map[string]any{
+	if err := client.Ws.WriteJSON(map[string]any{
 		"event":    "init",
 		"users":    users,
 		"nickname": client.NickName,
-	})
+	}); err != nil {
+		return err
+	}
 
 	return nil
 }
 
 func Type(clients map[string]*websocket.Conn, receiver, sender string) {
-	clients[receiver].WriteJSON(map[string]any{
-		"event": "typing",
-		"typer": sender,
-	})
+	if conn, ok := clients[receiver]; ok {
+		conn.WriteJSON(map[string]any{
+			"event": "typing",
+			"typer": sender,
+		})
+	}
 }
 
 func StopType(clients map[string]*websocket.Conn, receiver, sender string) {
-	clients[receiver].WriteJSON(map[string]any{
-		"event": "stop-typing",
-		"typer": sender,
-	})
+	if conn, ok := clients[receiver]; ok {
+		conn.WriteJSON(map[string]any{
+			"event": "stop-typing",
+			"typer": sender,
+		})
+	}
 }

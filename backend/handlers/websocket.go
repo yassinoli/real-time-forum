@@ -13,16 +13,17 @@ import (
 
 func WebsocketHandler(db *sql.DB, hub *models.Hub) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		var nickname, userID string
+
+		// Auth check MUST happen before upgrade, while w is still a valid HTTP writer
+		if !middleware.IsloggedIn(w, r, db, &nickname, &userID) {
+			return
+		}
+
 		upgrader := websocket.Upgrader{}
 
 		ws, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
-			return
-		}
-
-		var nickname, userID string
-
-		if !middleware.IsloggedIn(w, r, db, &nickname, &userID) {
 			return
 		}
 

@@ -17,11 +17,13 @@ func Connect(clients map[string]*websocket.Conn, db *sql.DB, client models.Clien
 		return err
 	}
 
-	client.Ws.WriteJSON(map[string]any{
+	if err := client.Ws.WriteJSON(map[string]any{
 		"event":    "init",
 		"users":    users,
 		"nickname": client.NickName,
-	})
+	}); err != nil {
+		return err
+	}
 
 	for name, conn := range clients {
 		if name == client.NickName {
@@ -37,6 +39,11 @@ func Connect(clients map[string]*websocket.Conn, db *sql.DB, client models.Clien
 }
 
 func Reconnect(clients map[string]*websocket.Conn, db *sql.DB, nickname string) error {
+	conn, ok := clients[nickname]
+	if !ok {
+		return nil
+	}
+
 	var user_id string
 	err := db.QueryRow(`SELECT id FROM user WHERE nickname = ?`, nickname).Scan(&user_id)
 	if err != nil {
@@ -48,11 +55,13 @@ func Reconnect(clients map[string]*websocket.Conn, db *sql.DB, nickname string) 
 		return err
 	}
 
-	clients[nickname].WriteJSON(map[string]any{
+	if err := conn.WriteJSON(map[string]any{
 		"event":    "init",
 		"users":    users,
 		"nickname": nickname,
-	})
+	}); err != nil {
+		return err
+	}
 
 	return nil
 }

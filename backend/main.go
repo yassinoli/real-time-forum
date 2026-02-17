@@ -45,7 +45,7 @@ func main() {
 		Broadcast:  make(chan models.Message),
 	}
 
-	go chatwebsocket.Broadcast(db, hub)
+	go chatwebsocket.RunBroker(db, hub)
 
 	http.HandleFunc("/", handlers.HomeHanlder)
 	http.HandleFunc("/register", handlers.RegisterHandler(db))
