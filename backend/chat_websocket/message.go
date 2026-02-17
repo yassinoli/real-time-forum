@@ -2,6 +2,7 @@ package chatwebsocket
 
 import (
 	"database/sql"
+	"errors"
 	"time"
 
 	"real-time-forum/backend/models"
@@ -20,6 +21,7 @@ func MarkRead(db *sql.DB, sender, receiver string) error {
 	if err != nil {
 		return nil
 	}
+	
 	return nil
 }
 
@@ -70,11 +72,8 @@ func GetFirstMessages(clients map[string]*websocket.Conn, db *sql.DB, msg models
 }
 
 func Chat(clients map[string]*websocket.Conn, db *sql.DB, msg models.Message) error {
-	if receiverConn, ok := clients[msg.Receiver]; ok {
-		receiverConn.WriteJSON(map[string]any{
-			"event":   "chat",
-			"message": msg,
-		})
+	if len(msg.Content) > 2000 {
+		return errors.New("message is too long")
 	}
 
 	messageID, _ := uuid.NewV4()
@@ -93,6 +92,22 @@ func Chat(clients map[string]*websocket.Conn, db *sql.DB, msg models.Message) er
 	if err != nil {
 		return err
 	}
+
+	msg.Time = now
+
+	if receiverConn, ok := clients[msg.Receiver]; ok {
+		receiverConn.WriteJSON(map[string]any{
+			"event":   "chat",
+			"message": msg,
+			"time":    now,
+		})
+	}
+
+	clients[msg.Sender].WriteJSON(map[string]any{
+		"event":   "own-message",
+		"message": msg,
+		"time":    now,
+	})
 
 	return nil
 }

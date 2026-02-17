@@ -28,7 +28,6 @@ export const renderError = (code, msg) => {
 }
 
 export const HandleRouting = async () => {
-
     const path = window.location.pathname
 
     const initFunc = routes[path]

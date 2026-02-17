@@ -46,7 +46,7 @@ const postsTemplate = () => {
             <div id="messages"></div>
 
             <div id="chat-input">
-                <textarea id="chat-textarea" rows="1" placeholder="Écrire un message…"></textarea>
+                <textarea id="chat-textarea" rows="1" placeholder="Type something…" maxlength="2000"></textarea>
                 <button id="send-btn">📨</button>
             </div>
             
