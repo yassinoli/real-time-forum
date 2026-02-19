@@ -15,26 +15,20 @@ export const messages = {
 
 export let worker = null
 export let workerPort = null
+export let portKey = null
 
 export const handleChatFront = () => {
-    if (worker) {
-        workerPort.postMessage({
-            type: "send",
-            payload: {
-                type: "reconnect",
-                sender: currentUser.nickName,
-            }
-        })
-
-        return
-    }
-
     worker = new SharedWorker("/statics/js/services/sharedWorker.js")
     workerPort = worker.port
 
     workerPort.start()
 
-    workerPort.postMessage({ type: "connect" })
+    workerPort.postMessage({
+        type: "connect", payload: {
+            type: "reconnect",
+            sender: currentUser.nickName,
+        }
+    })
 
     setupEventListeners()
 
@@ -42,6 +36,11 @@ export const handleChatFront = () => {
         const data = event.data
 
         switch (data.event) {
+
+            case "connected": {
+                portKey = data.portKey
+                break
+            }
 
             case "ws-open":
                 console.log("WS connected via SharedWorker")
@@ -102,6 +101,6 @@ export const handleChatFront = () => {
     }
 
     window.addEventListener("beforeunload", () => {
-        workerPort.postMessage({ type: "disconnect-tab" })
+        workerPort.postMessage({ type: "disconnect-tab", portKey })
     })
 }

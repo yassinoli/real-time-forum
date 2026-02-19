@@ -50,7 +50,7 @@ func RunBroker(db *sql.DB, hub *models.Hub) {
 				}
 
 			case "load_history":
-				err := GetFirstMessages(clients, db, msg)
+				err := GetOldMessages(clients, db, msg)
 				if err != nil {
 					fmt.Println("broker: failed to load history:", err)
 					continue
@@ -66,13 +66,6 @@ func RunBroker(db *sql.DB, hub *models.Hub) {
 							"error": "Failed to send message. Please try again.",
 						})
 					}
-					continue
-				}
-
-			case "reload":
-				err := GetMoreMessage(clients, db, msg.Sender, msg.Receiver)
-				if err != nil {
-					fmt.Println("broker: failed to load more messages:", err)
 					continue
 				}
 

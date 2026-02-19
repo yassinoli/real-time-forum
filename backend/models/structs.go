@@ -43,7 +43,7 @@ type Message struct {
 	Content  string `json:"content"`
 	Time     int64  `json:"time"`
 	Offset   int    `json:"offset"`
-	RequestId string `json:"requestId,omitempty"`
+	PortKey  string `json:"portKey"`
 }
 
 type OtherClient struct {

@@ -1,4 +1,4 @@
-import { currentUser, messages, workerPort } from "../../services/websocket.js"
+import { currentUser, messages, portKey, workerPort } from "../../services/websocket.js"
 import { throttle } from "../../utils/utils.js"
 import { sendStopTyping } from "./messageInput.js"
 import { createUserNode, updateOnlineMarker } from "./userList.js"
@@ -64,7 +64,8 @@ const loadMore = throttle(() => {
             type: "load_history",
             sender: currentUser.nickName,
             receiver: document.getElementById('receiver').textContent,
-            offset: messages.currentOffset
+            offset: messages.currentOffset,
+            portKey,
         }
     })
 
@@ -220,7 +221,8 @@ export const showOldMessage = (oldMessages) => {
                 type: "load_history",
                 sender: currentUser.nickName,
                 receiver: document.getElementById('receiver').textContent,
-                offset: messages.currentOffset
+                offset: messages.currentOffset,
+                portKey,
             }
         })
     }

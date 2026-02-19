@@ -1,5 +1,5 @@
 let socket = null
-const ports = new Set()
+const ports = new Map()
 
 function broadcast(data) {
     ports.forEach(port => port.postMessage(data))
@@ -7,7 +7,14 @@ function broadcast(data) {
 
 onconnect = function (e) {
     const port = e.ports[0]
-    ports.add(port)
+    const key = crypto.randomUUID()
+
+    ports.set(key, port)
+
+    port.postMessage({
+        event: "connected",
+        portKey: key
+    })
 
     port.onmessage = function (event) {
         const msg = event.data
@@ -16,16 +23,21 @@ onconnect = function (e) {
 
             case "connect": {
                 if (!socket) {
-                    socket = new WebSocket("ws://localhost:8080/ws/chat")
+                    socket = new WebSocket("ws://10.1.9.6:8080/ws/chat")
 
                     socket.onopen = () => {
                         broadcast({ event: "ws-open" })
+                        console.log("hello")
                     }
 
                     socket.onmessage = (e) => {
                         try {
                             const data = JSON.parse(e.data)
-                            broadcast(data)
+                            console.log(data)
+
+                            if (data.event === "history") ports.get(data.portKey).postMessage(data)       
+                            else broadcast(data)
+                        
                         } catch (err) {
                             console.error("WS parse error", err)
                         }
@@ -39,7 +51,10 @@ onconnect = function (e) {
                     socket.onerror = (err) => {
                         console.error("WS error", err)
                     }
+                } else {
+                    socket.send(JSON.stringify(msg.payload))
                 }
+
                 break
             }
 
@@ -51,7 +66,7 @@ onconnect = function (e) {
             }
 
             case "disconnect-tab": {
-                ports.delete(port)
+                ports.delete(msg.portKey)
                 break
             }
 

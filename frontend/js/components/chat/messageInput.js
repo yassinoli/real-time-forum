@@ -72,8 +72,8 @@ export const sendStopTyping = () => {
     currentUser.isTyping = false
 }
 
-const debouncedStopTyping = debounce(sendStopTyping, 5000)
-const throttledSendTyping = throttle(sendTyping, 5000)
+const debouncedStopTyping = debounce(sendStopTyping, 1000)
+const throttledSendTyping = throttle(sendTyping, 1000)
 
 export const setupEventListeners = () => {
     const chatTextarea = document.getElementById("chat-textarea")
