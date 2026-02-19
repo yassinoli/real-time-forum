@@ -2,17 +2,6 @@ import { AddToChat, setupEventListeners } from "../components/chat/messageInput.
 import { addTyping, removeTyping, showNewMessage, showOldMessage, updateNotification } from "../components/chat/messageWindow.js"
 import { initUserList, insertInList, removeMarker, updateCurrentEl } from "../components/chat/userList.js"
 
-const wsChannel = new BroadcastChannel("chat-ws-sync")
-
-wsChannel.onmessage = (event) => {
-    const data = event.data
-    dispatchSocketEvent(data)
-}
-
-window.addEventListener("beforeunload", () => {
-    wsChannel.close()
-})
-
 export const currentUser = {
     nickName: "",
     socket: null,
@@ -24,97 +13,95 @@ export const messages = {
     currentOffset: 0,
 }
 
-function dispatchSocketEvent(data) {
-    switch (data.event) {
-        case "init": {
-            if (data.users.length === 0) {
-                document.querySelector(".user-list-wrapper")
-                    .textContent = `You are the only user for now`
-            } else {
-                initUserList(data)
-            }
-            break
-        }
-
-        case "chat": {
-            const receiver = document.getElementById("receiver")
-            const list = document.querySelector(".user-list-wrapper")
-
-            if (!receiver || receiver.textContent !== data.message.sender) {
-                updateNotification(list, data.message.sender)
-            } else {
-                showNewMessage(data.message, list)
-            }
-            break
-        }
-
-        case "own-message": {
-            AddToChat(data.message)
-            console.log("trigered")
-            break
-        }
-
-        case "history":
-            showOldMessage(data.messages)
-            break
-
-        case "join": {
-            const newCommersEl = document.getElementById(data.newcommers)
-            if (!newCommersEl) insertInList(data.newcommers)
-            else updateCurrentEl(newCommersEl, data.newcommers)
-            break
-        }
-
-        case "leave":
-            removeMarker(data.left)
-            if (document.getElementById("receiver")?.textContent === data.left) {
-                removeTyping()
-            }
-            break
-
-        case "typing":
-            addTyping(data.typer)
-            break
-
-        case "stop-typing":
-            removeTyping()
-            break
-    }
-}
+export let worker = null
+export let workerPort = null
 
 export const handleChatFront = () => {
-    if (currentUser.socket) {
-        currentUser.socket.send(
-            JSON.stringify({
+    if (worker) {
+        workerPort.postMessage({
+            type: "send",
+            payload: {
+                type: "reconnect",
                 sender: currentUser.nickName,
-                type: "reconnect"
-            })
-        )
+            }
+        })
+
+        return
     }
 
-    currentUser.socket = new WebSocket("ws://localhost:8080/ws/chat")
+    worker = new SharedWorker("/statics/js/services/sharedWorker.js")
+    workerPort = worker.port
 
-    currentUser.socket.onopen = () => {
-        setupEventListeners()
-    }
+    workerPort.start()
 
-    currentUser.socket.onerror = (error) => {
-        console.error("WebSocket error:", error)
-    }
+    workerPort.postMessage({ type: "connect" })
 
-    currentUser.socket.onmessage = (e) => {
-        try {
-            const data = JSON.parse(e.data)
+    setupEventListeners()
 
-            dispatchSocketEvent(data)
-            wsChannel.postMessage(data)
+    workerPort.onmessage = (event) => {
+        const data = event.data
 
-        } catch (error) {
-            console.error("Error parsing WebSocket message:", error)
+        switch (data.event) {
+
+            case "ws-open":
+                console.log("WS connected via SharedWorker")
+                break
+
+            case "init": {
+                if (data.users.length === 0) {
+                    document.querySelector(".user-list-wrapper")
+                        .textContent = `You are the only user for now`
+                } else {
+                    initUserList(data)
+                }
+                break
+            }
+
+            case "chat": {
+                const receiver = document.getElementById("receiver")
+                const list = document.querySelector(".user-list-wrapper")
+
+                if (!receiver || receiver.textContent !== data.message.sender) {
+                    updateNotification(list, data.message.sender)
+                } else {
+                    showNewMessage(data.message, list)
+                }
+                break
+            }
+
+            case "own-message":
+                AddToChat(data.message)
+                break
+
+            case "history":
+                showOldMessage(data.messages)
+                break
+
+            case "join": {
+                const el = document.getElementById(data.newcommers)
+                if (!el) insertInList(data.newcommers)
+                else updateCurrentEl(el, data.newcommers)
+                break
+            }
+
+            case "leave":
+                removeMarker(data.left)
+                if (document.getElementById("receiver")?.textContent === data.left) {
+                    removeTyping()
+                }
+                break
+
+            case "typing":
+                addTyping(data.typer)
+                break
+
+            case "stop-typing":
+                removeTyping()
+                break
         }
     }
 
-    currentUser.socket.onclose = () => {
-        currentUser.socket = null
-    }
+    window.addEventListener("beforeunload", () => {
+        workerPort.postMessage({ type: "disconnect-tab" })
+    })
 }

@@ -1,5 +1,6 @@
-import { currentUser, messages } from "../../services/websocket.js"
+import { currentUser, messages, workerPort } from "../../services/websocket.js"
 import { throttle } from "../../utils/utils.js"
+import { sendStopTyping } from "./messageInput.js"
 import { createUserNode, updateOnlineMarker } from "./userList.js"
 
 export class Message {
@@ -57,12 +58,16 @@ export class Message {
 }
 
 const loadMore = throttle(() => {
-    currentUser.socket.send(JSON.stringify({
-        sender: currentUser.nickName,
-        receiver: document.getElementById('receiver').textContent,
-        type: "load_history",
-        offset: messages.currentOffset
-    }))
+    workerPort.postMessage({
+        type: "send",
+        payload: {
+            type: "load_history",
+            sender: currentUser.nickName,
+            receiver: document.getElementById('receiver').textContent,
+            offset: messages.currentOffset
+        }
+    })
+
 }, 500)
 
 const observer = new IntersectionObserver((entries) => {
@@ -97,6 +102,8 @@ const createTypingElement = (typer) => {
 }
 
 export const addTyping = (typer) => {
+    if (document.querySelector(".typing")) return
+
     const typingEl = createTypingElement(typer)
 
     const receiver = document.getElementById("receiver")
@@ -172,10 +179,12 @@ export const SwapChat = (user) => {
     const currentReceiver = receiverEl.textContent
 
     if (currentReceiver === user.nickname) {
+        sendStopTyping()
         closeChat()
         return
     }
 
+    sendStopTyping()
     switchChat(user)
 }
 
@@ -205,22 +214,29 @@ export const showOldMessage = (oldMessages) => {
     else cont.scrollTop = prevHeight
 
     if (notFull) {
-        currentUser.socket.send(JSON.stringify({
-            type: "load_history",
-            receiver: document.getElementById("receiver").textContent,
-            offset: messages.currentOffset
-        }))
+        workerPort.postMessage({
+            type: "send",
+            payload: {
+                type: "load_history",
+                sender: currentUser.nickName,
+                receiver: document.getElementById('receiver').textContent,
+                offset: messages.currentOffset
+            }
+        })
     }
 }
 
 export const showNewMessage = (message, list) => {
     addMessage(message)
 
-    currentUser.socket.send(JSON.stringify({
-        type: "mark_read",
-        sender: currentUser.nickName,
-        receiver: message.sender
-    }))
+    workerPort.postMessage({
+        type: "send",
+        payload: {
+            type: "mark_read",
+            sender: currentUser.nickName,
+            receiver: message.sender
+        }
+    })
 
     document.getElementById(message.sender).remove()
     const newEl = createUserNode({ nickname: message.sender, online: true }, { hasChat: true })

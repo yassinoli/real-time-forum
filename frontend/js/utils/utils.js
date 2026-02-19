@@ -16,7 +16,7 @@ export const throttle = (cb, delay) => {
     return (...args) => {
         if (timer) return
 
-        cb(args)
+        cb(...args)
 
         timer = setTimeout(() => {
             timer = null

@@ -1,4 +1,4 @@
-import { currentUser } from "../../services/websocket.js"
+import { currentUser, workerPort } from "../../services/websocket.js"
 import { throttle, debounce } from "../../utils/utils.js"
 import { addMessage, addTyping } from "./messageWindow.js"
 import { createUserNode } from "./userList.js"
@@ -9,11 +9,14 @@ const sendMessage = () => {
 
     if (!receiverEl.textContent || !input.value || input.value.length > 2000) return
 
-    currentUser.socket.send(JSON.stringify({
-        type: "chat",
-        receiver: receiverEl.textContent,
-        content: input.value
-    }))
+    workerPort.postMessage({
+        type: "send",
+        payload: {
+            type: "chat",
+            receiver: receiverEl.textContent,
+            content: input.value
+        }
+    })
 }
 
 export const AddToChat = (msg) => {
@@ -30,39 +33,47 @@ export const AddToChat = (msg) => {
     const msgContainer = document.getElementById("messages")
     msgContainer.scrollTo({ top: msgContainer.scrollHeight, behavior: "smooth" })
 
-    document.getElementById(msg.receiver).remove()
+    const currEl = document.getElementById(msg.receiver)
+    const isonline = !!currEl.querySelector(".online-marker")
+    currEl.remove()
 
-    const newEl = createUserNode({ nickname: msg.receiver, online: true }, { hasChat: true })
+
+    const newEl = createUserNode({ nickname: msg.receiver, online: isonline }, { hasChat: true })
     document.querySelector(".user-list-wrapper").prepend(newEl)
 
     document.getElementById("chat-textarea").value = ""
 }
 
 const sendTyping = () => {
-    if (currentUser.isTyping) return
-
-    currentUser.socket.send(JSON.stringify({
-        sender: currentUser.nickName,
-        receiver: document.getElementById("receiver").textContent,
-        type: "typing",
-    }))
+    workerPort.postMessage({
+        type: "send",
+        payload: {
+            type: "typing",
+            sender: currentUser.nickName,
+            receiver: document.getElementById("receiver").textContent,
+        }
+    })
 
     currentUser.isTyping = true
 }
 
-const sendStopTyping = () => {
+export const sendStopTyping = () => {
     if (!currentUser.isTyping) return
 
-    currentUser.socket.send(JSON.stringify({
-        sender: currentUser.nickName,
-        receiver: document.getElementById("receiver").textContent,
-        type: "stop-typing",
-    }))
+    workerPort.postMessage({
+        type: "send",
+        payload: {
+            type: "stop-typing",
+            sender: currentUser.nickName,
+            receiver: document.getElementById("receiver").textContent,
+        }
+    })
 
     currentUser.isTyping = false
 }
 
 const debouncedStopTyping = debounce(sendStopTyping, 5000)
+const throttledSendTyping = throttle(sendTyping, 5000)
 
 export const setupEventListeners = () => {
     const chatTextarea = document.getElementById("chat-textarea")
@@ -75,7 +86,7 @@ export const setupEventListeners = () => {
     })
 
     chatTextarea.addEventListener("input", () => {
-        sendTyping()
+        throttledSendTyping()
         debouncedStopTyping()
     })
 

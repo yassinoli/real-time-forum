@@ -80,13 +80,24 @@ export const handleLoginFront = async () => {
     })
 
     switch (result.code) {
-        case 200 || 303: {
+        case 200: {
             window.history.pushState({}, "", "/posts")
             HandleRouting()
             break
         }
 
-        case 400 || 401: {
+        case 303: {
+            window.history.pushState({}, "", "/posts")
+            HandleRouting()
+            break
+        }
+
+        case 400: {
+            errorDiv.textContent = result.error
+            break
+        }
+
+        case 401: {
             errorDiv.textContent = result.error
             break
         }

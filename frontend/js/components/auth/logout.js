@@ -1,6 +1,6 @@
 import { HandleRouting, renderError } from "../../router.js"
 import { request } from "../../services/api.js"
-import { currentUser } from "../../services/websocket.js"
+import { worker, workerPort } from "../../services/websocket.js"
 
 export const handleLogoutFront = async () => {
     const result = await request("/api/logout", {
@@ -16,9 +16,9 @@ export const handleLogoutFront = async () => {
         return
     }
 
-    if (currentUser.socket) {
-        currentUser.socket.close()
-        currentUser.socket = null
+    if (worker) {
+        workerPort.postMessage({ type: "logout" })
+        workerPort.close()
     }
 
     window.history.pushState({}, "", "/")

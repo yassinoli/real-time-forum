@@ -51,8 +51,7 @@ const postsTemplate = () => {
             </div>
             
         </div>
-    `
-}
+    `}
 
 const createHeader = (auth) => {
     return `
