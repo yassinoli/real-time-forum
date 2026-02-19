@@ -1,5 +1,7 @@
 import { HandleRouting, renderError, mainCont, navBar } from '../../router.js'
 import { request } from '../../services/api.js'
+import { checkAuth } from "../../utils/utils.js"
+
 
 const registerTemplate = () => {
     return `
@@ -65,9 +67,16 @@ const registerTemplate = () => {
     `
 }
 
-export const initRegister = () => {
+export async function initRegister()  {
+      const user =  await checkAuth()
+    
+        if (user.loggedIn) {
+            window.history.pushState({}, "", "/posts")
+            HandleRouting()
+        } else {
     navBar.innerHTML = ''
     mainCont.innerHTML = registerTemplate()
+        }
 }
 
 export const handleregisterFront = async () => {

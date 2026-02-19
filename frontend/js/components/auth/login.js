@@ -1,5 +1,6 @@
 import { HandleRouting, renderError, mainCont, navBar } from '../../router.js'
 import { request } from '../../services/api.js'
+import { checkAuth } from '../../utils/utils.js'
 
 const loginTemplate = () => {
     return `
@@ -47,9 +48,16 @@ const loginTemplate = () => {
     `
 }
 
-export const initLogin = () => {
+export async function initLogin() {
+     const user =  await checkAuth()
+    
+        if (user.loggedIn) {
+            window.history.pushState({}, "", "/posts")
+            HandleRouting()
+        } else {
     navBar.innerHTML = ''
     mainCont.innerHTML = loginTemplate()
+        }
 }
 
 export const handleLoginFront = async () => {
