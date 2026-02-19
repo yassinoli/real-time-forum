@@ -23,17 +23,15 @@ onconnect = function (e) {
 
             case "connect": {
                 if (!socket) {
-                    socket = new WebSocket("ws://10.1.9.6:8080/ws/chat")
+                    socket = new WebSocket("ws://localhost:8080/ws/chat")
 
                     socket.onopen = () => {
                         broadcast({ event: "ws-open" })
-                        console.log("hello")
                     }
 
                     socket.onmessage = (e) => {
                         try {
                             const data = JSON.parse(e.data)
-                            console.log(data)
 
                             if (data.event === "history") ports.get(data.portKey).postMessage(data)       
                             else broadcast(data)

@@ -76,6 +76,11 @@ export const handleChatFront = () => {
                 showOldMessage(data.messages)
                 break
 
+            case "read" : {
+                document.getElementById(data.target).querySelector(".msg-notif")?.remove()
+                break
+            }
+
             case "join": {
                 const el = document.getElementById(data.newcommers)
                 if (!el) insertInList(data.newcommers)

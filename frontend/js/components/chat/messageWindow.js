@@ -123,7 +123,6 @@ export const removeTyping = () => {
 }
 
 const openChat = (user) => {
-    document.getElementById(user.nickname).querySelector(".typing")?.remove()
     const chatCont = document.querySelector(".chat-container")
 
     const header = createUserNode(user, { clickable: true, receiver: true })
@@ -137,8 +136,6 @@ const openChat = (user) => {
 
     const cont = document.getElementById("messages")
     cont.innerHTML = `<div id="sentinel"></div>`
-
-
     observer.observe(document.getElementById("sentinel"))
 }
 
@@ -155,6 +152,7 @@ const switchChat = (user) => {
 
     receiverEl.textContent = user.nickname
     updateOnlineMarker(chatCont.firstElementChild, user.online)
+
 }
 
 const closeChat = () => {
@@ -250,6 +248,7 @@ export const updateNotification = (list, senderName) => {
     const senderEl = document.getElementById(senderName)
     const oldNotif = senderEl.querySelector(".msg-notif")
     const notifNumber = oldNotif ? Number(oldNotif.textContent) : 0
+    console.log(notifNumber)
 
     senderEl.remove()
 

@@ -11,7 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-func MarkRead(db *sql.DB, sender, receiver string) error {
+func MarkRead(db *sql.DB, receiver, sender string) error {
 	_, err := db.Exec(`
 				UPDATE private_message
 				SET is_read = TRUE
@@ -26,15 +26,15 @@ func MarkRead(db *sql.DB, sender, receiver string) error {
 }
 
 func GetOldMessages(clients map[string]*websocket.Conn, db *sql.DB, msg models.Message) error {
-	_, err := db.Exec(`
-				UPDATE private_message
-				SET is_read = TRUE 
-				WHERE sender_id = (SELECT id FROM user WHERE nickname = ?)
-				AND receiver_id = (SELECT id FROM user WHERE nickname = ?)
-				`, msg.Receiver, msg.Sender)
+	err := MarkRead(db, msg.Receiver, msg.Sender)
 	if err != nil {
 		return err
 	}
+
+	clients[msg.Sender].WriteJSON(map[string]any{
+		"event":  "read",
+		"target": msg.Receiver,
+	})
 
 	rows, err := db.Query(`
 					SELECT pm.created_at, pm.content, us.nickname, ur.nickname
@@ -63,9 +63,9 @@ func GetOldMessages(clients map[string]*websocket.Conn, db *sql.DB, msg models.M
 
 	if conn, ok := clients[msg.Sender]; ok {
 		if err := conn.WriteJSON(map[string]any{
-			"event":     "history",
-			"messages":  messages,
-			"portKey": msg.PortKey,
+			"event":    "history",
+			"messages": messages,
+			"portKey":  msg.PortKey,
 		}); err != nil {
 			return err
 		}
