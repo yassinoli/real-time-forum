@@ -95,9 +95,10 @@ export const handleChatFront = () => {
             }
 
             case "join": {
-                const el = document.getElementById(data.newcommers)
-                if (!el) insertInList(data.newcommers)
-                else updateCurrentEl(el, data.newcommers)
+                console.log(data)
+                const el = document.getElementById(data.newcomer)
+                if (!el) insertInList(data.newcomer)
+                else updateCurrentEl(el, data.newcomer)
                 break
             }
 

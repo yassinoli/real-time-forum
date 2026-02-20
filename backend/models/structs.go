@@ -54,8 +54,8 @@ type OtherClient struct {
 }
 
 type Hub struct {
-	Connect    chan Client
-	Disconnect chan Client
+	Connect    chan *Client
+	Disconnect chan *Client
 	Broadcast  chan Message
 }
 

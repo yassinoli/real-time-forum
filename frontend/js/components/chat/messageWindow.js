@@ -201,18 +201,22 @@ export const addMessage = (msg, history = false) => {
 
 export const showOldMessage = (oldMessages) => {
     const cont = document.getElementById("messages")
-    const notFull = (cont.scrollHeight <= cont.clientHeight) && messages.hasmore
-    oldMessages.forEach(msg => addMessage(msg, true))
 
-    const prevHeight = cont.scrollTop
+    if (oldMessages.length < 10) {
+        messages.hasmore = false
+        return
+    }
 
-    if (oldMessages.length === 0) messages.hasmore = false
     messages.currentOffset += oldMessages.length
 
-    if (notFull) cont.scrollTop = cont.scrollHeight
-    else cont.scrollTop = prevHeight
+    const prevScrollHeight = cont.scrollHeight
 
-    if (notFull) {
+    oldMessages.forEach(msg => addMessage(msg, true))
+
+    if (messages.currentOffset === oldMessages.length) cont.scrollTop = cont.scrollHeight
+    else cont.scrollTop += cont.scrollHeight - prevScrollHeight
+
+    if (cont.scrollHeight <= cont.clientHeight && messages.hasmore) {
         workerPort.postMessage({
             type: "send",
             payload: {

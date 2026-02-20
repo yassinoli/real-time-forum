@@ -1,20 +1,19 @@
 import { currentUser, workerPort } from "../../services/websocket.js"
 import { throttle, debounce } from "../../utils/utils.js"
 import { addMessage, addTyping } from "./messageWindow.js"
-import { createUserNode } from "./userList.js"
 
 const sendMessage = () => {
     const receiverEl = document.getElementById("receiver")
-    const input = document.getElementById("chat-textarea")
+    const input = document.getElementById("chat-textarea")?.value.trim()
 
-    if (!receiverEl.textContent || !input.value || input.value.length > 2000) return
+    if (!receiverEl.textContent || !input || input.length > 2000) return
 
     workerPort.postMessage({
         type: "send",
         payload: {
             type: "chat",
             receiver: receiverEl.textContent,
-            content: input.value
+            content: input
         }
     })
 }

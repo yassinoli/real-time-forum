@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
+	"sync"
 
 	"real-time-forum/backend/middleware"
 	"real-time-forum/backend/models"
@@ -15,22 +16,26 @@ func WebsocketHandler(db *sql.DB, hub *models.Hub) func(w http.ResponseWriter, r
 	return func(w http.ResponseWriter, r *http.Request) {
 		var nickname, userID string
 
-		// Auth check MUST happen before upgrade, while w is still a valid HTTP writer
 		if !middleware.IsloggedIn(w, r, db, &nickname, &userID) {
 			return
 		}
 
-		upgrader := websocket.Upgrader{}
+		upgrader := websocket.Upgrader{
+			CheckOrigin: func(r *http.Request) bool {
+				return true
+			},
+		}
 
 		ws, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			return
 		}
 
-		client := models.Client{
+		client := &models.Client{
 			ID:       userID,
 			NickName: nickname,
 			Ws:       ws,
+			Mu:       &sync.Mutex{},
 		}
 
 		hub.Connect <- client
@@ -38,8 +43,8 @@ func WebsocketHandler(db *sql.DB, hub *models.Hub) func(w http.ResponseWriter, r
 		for {
 			_, payload, err := ws.ReadMessage()
 			if err != nil {
+				client.Ws.Close()
 				hub.Disconnect <- client
-				ws.Close()
 				return
 			}
 

@@ -40,8 +40,8 @@ func main() {
 	}
 
 	hub := &models.Hub{
-		Connect:    make(chan models.Client),
-		Disconnect: make(chan models.Client),
+		Connect:    make(chan *models.Client),
+		Disconnect: make(chan *models.Client),
 		Broadcast:  make(chan models.Message),
 	}
 

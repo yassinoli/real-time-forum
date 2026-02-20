@@ -4,11 +4,9 @@ import (
 	"database/sql"
 
 	"real-time-forum/backend/models"
-
-	"github.com/gorilla/websocket"
 )
 
-func SelectOtherUsers(db *sql.DB, clients map[string]*websocket.Conn, currentUserID string) ([]models.OtherClient, error) {
+func SelectOtherUsers(db *sql.DB, clients map[string]*models.Client, currentUserID string) ([]models.OtherClient, error) {
 	rows, err := db.Query(`SELECT nickname, id FROM user WHERE id != ?`, currentUserID)
 	if err != nil {
 		return nil, err

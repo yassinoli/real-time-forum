@@ -5,77 +5,83 @@ import (
 
 	"real-time-forum/backend/models"
 	"real-time-forum/backend/repositories/sqlite"
-
-	"github.com/gorilla/websocket"
 )
 
-func Connect(clients map[string]*websocket.Conn, db *sql.DB, client models.Client) error {
-	clients[client.NickName] = client.Ws
+func Connect(clients map[string]*models.Client, db *sql.DB, client *models.Client) error {
+	clients[client.NickName] = client
 
 	users, err := sqlite.SelectOtherUsers(db, clients, client.ID)
 	if err != nil {
 		return err
 	}
 
-	if err := client.Ws.WriteJSON(map[string]any{
+	stored := clients[client.NickName]
+	stored.Mu.Lock()
+	err = stored.Ws.WriteJSON(map[string]any{
 		"event":    "init",
 		"users":    users,
-		"nickname": client.NickName,
-	}); err != nil {
+		"nickname": stored.NickName,
+	})
+	stored.Mu.Unlock()
+	if err != nil {
 		return err
 	}
 
-	for name, conn := range clients {
+	for name, c := range clients {
 		if name == client.NickName {
 			continue
 		}
 
-		conn.WriteJSON(map[string]any{
-			"event":      "join",
-			"newcommers": client.NickName,
+		c.Mu.Lock()
+		c.Ws.WriteJSON(map[string]any{
+			"event":    "join",
+			"newcomer": client.NickName,
 		})
+		c.Mu.Unlock()
 	}
 	return nil
 }
 
-func Reconnect(clients map[string]*websocket.Conn, db *sql.DB, nickname string) error {
-	conn, ok := clients[nickname]
+func Reconnect(clients map[string]*models.Client, db *sql.DB, nickname string) error {
+	client, ok := clients[nickname]
 	if !ok {
 		return nil
 	}
 
-	var user_id string
-	err := db.QueryRow(`SELECT id FROM user WHERE nickname = ?`, nickname).Scan(&user_id)
+	var userID string
+	err := db.QueryRow(`SELECT id FROM user WHERE nickname = ?`, nickname).Scan(&userID)
 	if err != nil {
 		return err
 	}
 
-	users, err := sqlite.SelectOtherUsers(db, clients, user_id)
+	users, err := sqlite.SelectOtherUsers(db, clients, userID)
 	if err != nil {
 		return err
 	}
 
-	if err := conn.WriteJSON(map[string]any{
+	client.Mu.Lock()
+	err = client.Ws.WriteJSON(map[string]any{
 		"event":    "init",
 		"users":    users,
 		"nickname": nickname,
-	}); err != nil {
-		return err
-	}
+	})
+	client.Mu.Unlock()
 
-	return nil
+	return err
 }
 
-func Disconnect(clients map[string]*websocket.Conn, senderName string) {
+func Disconnect(clients map[string]*models.Client, senderName string) {
 	delete(clients, senderName)
-	for name, conn := range clients {
+	for name, c := range clients {
 		if name == senderName {
 			continue
 		}
 
-		conn.WriteJSON(map[string]any{
+		c.Mu.Lock()
+		c.Ws.WriteJSON(map[string]any{
 			"event": "leave",
 			"left":  senderName,
 		})
+		c.Mu.Unlock()
 	}
 }
