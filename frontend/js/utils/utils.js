@@ -1,3 +1,5 @@
+import { createUserNode } from "../components/chat/userList.js"
+
 // Check if user is logged in and get user info
 export async function checkAuth() {
     try {
@@ -10,7 +12,7 @@ export async function checkAuth() {
     }
 }
 
-export const throttle = (cb, delay) => {
+export function throttle(cb, delay) {
     let timer = null
 
     return (...args) => {
@@ -25,7 +27,7 @@ export const throttle = (cb, delay) => {
     }
 }
 
-export const debounce = (cb, delay) => {
+export function debounce(cb, delay) {
     let timer = null
 
     return (...args) => {

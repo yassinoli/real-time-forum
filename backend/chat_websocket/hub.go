@@ -49,6 +49,13 @@ func RunBroker(db *sql.DB, hub *models.Hub) {
 					continue
 				}
 
+			case "get_unread":
+				err := GetUnread(clients, db, msg)
+				if err != nil {
+					fmt.Println("broker: failed to get unread messages:", err)
+					continue
+				}
+
 			case "load_history":
 				err := GetOldMessages(clients, db, msg)
 				if err != nil {
@@ -59,13 +66,7 @@ func RunBroker(db *sql.DB, hub *models.Hub) {
 			case "chat":
 				err := Chat(clients, db, msg)
 				if err != nil {
-					fmt.Println("broker: failed to send chat:", err)
-					if conn, ok := clients[msg.Sender]; ok {
-						conn.WriteJSON(map[string]any{
-							"event": "error",
-							"error": "Failed to send message. Please try again.",
-						})
-					}
+					fmt.Println("broker: failed to send message :", err)
 					continue
 				}
 

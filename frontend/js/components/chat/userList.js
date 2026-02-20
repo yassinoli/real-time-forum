@@ -135,3 +135,13 @@ export const removeMarker = (userName) => {
         receiver.parentElement.querySelector(".online-marker").remove()
     }
 }
+
+export const putOnTop = (receiver) => {
+    const currEl = document.getElementById(receiver)
+    const isonline = !!currEl.querySelector(".online-marker")
+    currEl.remove()
+
+
+    const newEl = createUserNode({ nickname: receiver, online: isonline }, { hasChat: true })
+    document.querySelector(".user-list-wrapper").prepend(newEl)
+}

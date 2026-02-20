@@ -33,14 +33,6 @@ export const AddToChat = (msg) => {
     const msgContainer = document.getElementById("messages")
     msgContainer.scrollTo({ top: msgContainer.scrollHeight, behavior: "smooth" })
 
-    const currEl = document.getElementById(msg.receiver)
-    const isonline = !!currEl.querySelector(".online-marker")
-    currEl.remove()
-
-
-    const newEl = createUserNode({ nickname: msg.receiver, online: isonline }, { hasChat: true })
-    document.querySelector(".user-list-wrapper").prepend(newEl)
-
     document.getElementById("chat-textarea").value = ""
 }
 

@@ -17,7 +17,7 @@ func MarkRead(db *sql.DB, receiver, sender string) error {
 				SET is_read = TRUE
 				WHERE sender_id = (SELECT id FROM user WHERE nickname = ?)
 				AND receiver_id = (SELECT id FROM user WHERE nickname = ?)
-				`, receiver, sender)
+				`, sender, receiver)
 	if err != nil {
 		return err
 	}
@@ -25,8 +25,33 @@ func MarkRead(db *sql.DB, receiver, sender string) error {
 	return nil
 }
 
+func GetUnread(clients map[string]*websocket.Conn, db *sql.DB, msg models.Message) error {
+	var amount int
+
+	err := db.QueryRow(`
+				SELECT COUNT(*)
+				FROM private_message pm
+				JOIN user s ON s.id = pm.sender_id
+				JOIN user r ON r.id = pm.receiver_id
+				WHERE s.nickname = ?
+				AND r.nickname = ?
+				AND pm.is_read = FALSE`, msg.Receiver, msg.Sender).Scan(&amount)
+	if err != nil {
+		return err
+	}
+
+	clients[msg.Sender].WriteJSON(map[string]any{
+		"event":    "unread",
+		"receiver": msg.Receiver,
+		"amount":   amount,
+		"portKey":  msg.PortKey,
+	})
+
+	return nil
+}
+
 func GetOldMessages(clients map[string]*websocket.Conn, db *sql.DB, msg models.Message) error {
-	err := MarkRead(db, msg.Receiver, msg.Sender)
+	err := MarkRead(db, msg.Sender, msg.Receiver)
 	if err != nil {
 		return err
 	}

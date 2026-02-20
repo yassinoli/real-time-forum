@@ -244,19 +244,29 @@ export const showNewMessage = (message, list) => {
 
 }
 
-export const updateNotification = (list, senderName) => {
-    const senderEl = document.getElementById(senderName)
-    const oldNotif = senderEl.querySelector(".msg-notif")
-    const notifNumber = oldNotif ? Number(oldNotif.textContent) : 0
-    console.log(notifNumber)
-
-    senderEl.remove()
+export const updateNotification = (senderName, amount) => {
+    document.getElementById(senderName)?.remove()
 
     const newUserEl = createUserNode(
         { nickname: senderName, online: true },
-        { hasChat: true, pending: notifNumber + 1 }
+        { hasChat: true, pending: amount }
     )
 
+    const list = document.querySelector(".user-list-wrapper")
     list.prepend(newUserEl)
     list.scrollTo({ top: 0, behavior: "smooth" })
+}
+
+export const markAsRead = (msg) => {
+    setTimeout(() => {
+        workerPort.postMessage({
+            type: "send",
+            payload: {
+                type: "get_unread",
+                sender: msg.receiver,
+                receiver: msg.sender,
+                portKey,
+            }
+        })
+    }, 100)
 }

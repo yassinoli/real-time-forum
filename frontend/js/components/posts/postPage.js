@@ -185,7 +185,6 @@ async function loadMorePosts() {
         })
 
         currentOffset += postsPerPage
-        console.log(`Loaded ${filteredPosts.length} more posts, total: ${allPosts.length}`)
     } catch (error) {
         console.error('Error loading more posts:', error)
     } finally {
@@ -217,7 +216,6 @@ function displayPosts(posts) {
         return
     }
 
-    console.log('Displaying', posts.length, 'posts')
     posts.forEach(post => {
         displayPost(post)
         allPosts.push(post)

@@ -25,17 +25,12 @@ onconnect = function (e) {
                 if (!socket) {
                     socket = new WebSocket("ws://localhost:8080/ws/chat")
 
-                    socket.onopen = () => {
-                        broadcast({ event: "ws-open" })
-                    }
-
                     socket.onmessage = (e) => {
                         try {
                             const data = JSON.parse(e.data)
-
-                            if (data.event === "history") ports.get(data.portKey).postMessage(data)       
+                            if (data.event === "history" || data.event === "unread") ports.get(data.portKey).postMessage(data)
                             else broadcast(data)
-                        
+
                         } catch (err) {
                             console.error("WS parse error", err)
                         }
@@ -57,9 +52,7 @@ onconnect = function (e) {
             }
 
             case "send": {
-
                 socket.send(JSON.stringify(msg.payload))
-
                 break
             }
 
@@ -69,8 +62,8 @@ onconnect = function (e) {
             }
 
             case "logout": {
-                ports.forEach(port => port.close())
                 socket.close()
+                setTimeout(() => ports.forEach(port => port.close()), 100)
             }
         }
     }

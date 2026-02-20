@@ -1,6 +1,7 @@
 import { AddToChat, setupEventListeners } from "../components/chat/messageInput.js"
-import { addTyping, removeTyping, showNewMessage, showOldMessage, updateNotification } from "../components/chat/messageWindow.js"
-import { initUserList, insertInList, removeMarker, updateCurrentEl } from "../components/chat/userList.js"
+import { addTyping, markAsRead, removeTyping, showNewMessage, showOldMessage, updateNotification } from "../components/chat/messageWindow.js"
+import { initUserList, insertInList, putOnTop, removeMarker, updateCurrentEl } from "../components/chat/userList.js"
+import { HandleRouting } from "../router.js"
 
 export const currentUser = {
     nickName: "",
@@ -42,9 +43,10 @@ export const handleChatFront = () => {
                 break
             }
 
-            case "ws-open":
-                console.log("WS connected via SharedWorker")
-                break
+            case "ws-close": {
+                window.history.pushState({}, "", "/")
+                HandleRouting()
+            }
 
             case "init": {
                 if (data.users.length === 0) {
@@ -61,22 +63,33 @@ export const handleChatFront = () => {
                 const list = document.querySelector(".user-list-wrapper")
 
                 if (!receiver || receiver.textContent !== data.message.sender) {
-                    updateNotification(list, data.message.sender)
+                    markAsRead(data.message)
+
                 } else {
                     showNewMessage(data.message, list)
                 }
                 break
             }
 
-            case "own-message":
-                AddToChat(data.message)
+            case "unread": {
+                updateNotification(data.receiver, data.amount)
                 break
+            }
+
+            case "own-message": {
+                if (document.getElementById("receiver")?.textContent === data.message.receiver) AddToChat(data.message)
+
+                putOnTop(data.message.receiver)
+
+                break
+            }
+
 
             case "history":
                 showOldMessage(data.messages)
                 break
 
-            case "read" : {
+            case "read": {
                 document.getElementById(data.target).querySelector(".msg-notif")?.remove()
                 break
             }
