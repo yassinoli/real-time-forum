@@ -67,7 +67,7 @@ const createHeader = (auth) => {
                         <div class="online-marker"></div>
                     </div>
                     <div class="user-profile-menu" id="user-profile-menu">
-                        <div class="user-profile-name">${auth.nickname}</div>
+                        <div class="user-profile-name">${escapeHtml(auth.nickname)}</div>
                         <button id="logout-btn-nav" class="logout-menu-btn">Logout</button>
                     </div>
                 </div>
