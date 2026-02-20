@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"real-time-forum/backend/models"
+	"real-time-forum/backend/repositories/sqlite"
 )
 
 func RunBroker(db *sql.DB, hub *models.Hub) {
@@ -34,7 +35,7 @@ func RunBroker(db *sql.DB, hub *models.Hub) {
 				}
 
 			case "mark_read":
-				err := MarkRead(db, msg.Sender, msg.Receiver)
+				err := sqlite.MarkRead(db, msg.Sender, msg.Receiver)
 				if err != nil {
 					fmt.Println("broker: failed to mark read:", err)
 				}

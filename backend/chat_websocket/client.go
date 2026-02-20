@@ -49,7 +49,7 @@ func Reconnect(clients map[string]*models.Client, db *sql.DB, nickname string) e
 	}
 
 	var userID string
-	err := db.QueryRow(`SELECT id FROM user WHERE nickname = ?`, nickname).Scan(&userID)
+	userID, err := sqlite.GetUserID(db, nickname)
 	if err != nil {
 		return err
 	}

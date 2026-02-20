@@ -51,3 +51,9 @@ func SelectPasswordAndID(db *sql.DB, resp *models.Resp, credentials *models.Cred
 
 	return storedPassword, user_id
 }
+
+func GetUserID(db *sql.DB, nickname string) (string, error) {
+	var userID string
+	err := db.QueryRow(`SELECT id FROM user WHERE nickname = ?`, nickname).Scan(&userID)
+	return userID, err
+}

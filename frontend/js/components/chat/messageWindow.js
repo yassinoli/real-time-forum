@@ -125,7 +125,7 @@ export const removeTyping = () => {
 const openChat = (user) => {
     const chatCont = document.querySelector(".chat-container")
 
-    const header = createUserNode(user, { clickable: true, receiver: true })
+    const header = createUserNode(user, { clickable: false, receiver: true })
     header.removeAttribute("id")
 
     chatCont.prepend(header)
@@ -141,16 +141,14 @@ const openChat = (user) => {
 
 const switchChat = (user) => {
     const chatCont = document.querySelector(".chat-container")
-    const receiverEl = document.getElementById("receiver")
+    document.getElementById("receiver").textContent = user.nickname
 
     observer.disconnect()
     messages.currentOffset = 0
     messages.hasmore = true
-    const cont = document.getElementById("messages")
-    cont.innerHTML = `<div id="sentinel"></div>`
+    document.getElementById("messages").innerHTML = `<div id="sentinel"></div>`
     observer.observe(document.getElementById("sentinel"))
 
-    receiverEl.textContent = user.nickname
     updateOnlineMarker(chatCont.firstElementChild, user.online)
 
 }
