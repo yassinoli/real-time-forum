@@ -61,7 +61,9 @@ func Login(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	}
 
 	err = services.DeleteSession(w, r, db)
-	if err != nil {
+	_, err2 := db.Exec("DELETE FROM session WHERE user_id = ?", user_id)
+
+	if err != nil || err2 != nil {
 		fmt.Println("error while removing the session: ", err)
 		utils.Respond(w, &models.Resp{Code: 500, Error: "Something wrong happened. Please try again"})
 		return

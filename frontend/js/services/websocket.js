@@ -19,6 +19,11 @@ export let workerPort = null
 export let portKey = null
 
 export const handleChatFront = () => {
+    if (workerPort && portKey) {
+        workerPort.postMessage({ type: "disconnect-tab", portKey })
+        workerPort.close()
+    }
+
     worker = new SharedWorker("/statics/js/services/sharedWorker.js")
     workerPort = worker.port
 
@@ -46,11 +51,14 @@ export const handleChatFront = () => {
             }
 
             case "ws-close": {
+                workerPort.postMessage({ type: "logout" })
+                workerPort.close()
                 window.history.pushState({}, "", "/")
                 HandleRouting()
             }
 
             case "init": {
+                console.log(data)
                 if (data.users.length === 0) {
                     document.querySelector(".user-list-wrapper")
                         .textContent = `You are the only user for now`

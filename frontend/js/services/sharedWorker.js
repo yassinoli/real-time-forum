@@ -11,6 +11,8 @@ onconnect = function (e) {
 
     ports.set(key, port)
 
+    console.log(ports, 1)
+
     port.postMessage({
         event: "connected",
         portKey: key
@@ -23,6 +25,7 @@ onconnect = function (e) {
 
             case "connect": {
                 if (!socket) {
+                    console.log(ports.size, 2)
                     socket = new WebSocket("ws://localhost:8080/ws/chat")
 
                     socket.onmessage = (e) => {
@@ -45,6 +48,7 @@ onconnect = function (e) {
                         console.error("WS error", err)
                     }
                 } else {
+                    console.log(ports.size, 3)
                     socket.send(JSON.stringify(msg.payload))
                 }
 
@@ -52,18 +56,21 @@ onconnect = function (e) {
             }
 
             case "send": {
+                console.log(ports.size, 4)
                 socket.send(JSON.stringify(msg.payload))
                 break
             }
 
             case "disconnect-tab": {
+
                 ports.delete(msg.portKey)
+                console.log(ports.size, 5)
                 break
             }
 
             case "logout": {
+                console.log(ports.size, 6)
                 socket.close()
-                setTimeout(() => ports.forEach(port => port.close()), 100)
             }
         }
     }

@@ -56,16 +56,16 @@ func Register(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		return
 	}
 
-	err = services.CreateNewSession(w, db, user_id.String())
-	if err != nil {
-		utils.Respond(w, &models.Resp{Code: 500, Error: err.Error()})
-		return
-	}
-
 	err = services.DeleteSession(w, r, db)
 	if err != nil {
 		fmt.Println("error while removing the session: ", err)
 		utils.Respond(w, &models.Resp{Code: 500, Error: "Something wrong happened. Please try again"})
+		return
+	}
+
+	err = services.CreateNewSession(w, db, user_id.String())
+	if err != nil {
+		utils.Respond(w, &models.Resp{Code: 500, Error: err.Error()})
 		return
 	}
 
