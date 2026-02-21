@@ -8,7 +8,7 @@ import (
 	"github.com/gofrs/uuid"
 )
 
-func SelectOtherUsers(db *sql.DB, clients map[string]*models.Client, currentUserID string) ([]models.OtherClient, error) {
+func SelectOtherUsers(db *sql.DB, clients map[string][]*models.Client, currentUserID string) ([]models.OtherClient, error) {
 	rows, err := db.Query(`SELECT nickname, id FROM user WHERE id != ?`, currentUserID)
 	if err != nil {
 		return nil, err
@@ -48,7 +48,8 @@ func SelectOtherUsers(db *sql.DB, clients map[string]*models.Client, currentUser
 			return nil, err
 		}
 
-		_, u.Online = clients[u.NickName]
+		cs, exists := clients[u.NickName]
+		u.Online = exists && len(cs) > 0
 		users = append(users, u)
 	}
 

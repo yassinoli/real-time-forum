@@ -87,7 +87,7 @@ export const initPost = async () => {
         document.getElementById('main-container').innerHTML = postsTemplate()
 
         initializePage()
-        handleChatFront()
+        handleChatFront(user.nickname)
 
         // Setup logout button
         const logoutBtn = document.getElementById('logout-btn-nav')

@@ -7,44 +7,43 @@ import (
 	"real-time-forum/backend/repositories/sqlite"
 )
 
-func Connect(clients map[string]*models.Client, db *sql.DB, client *models.Client) error {
-	clients[client.NickName] = client
-
+func Connect(clients map[string][]*models.Client, db *sql.DB, client *models.Client) error {
 	users, err := sqlite.SelectOtherUsers(db, clients, client.ID)
 	if err != nil {
 		return err
 	}
 
-	stored := clients[client.NickName]
-	stored.Mu.Lock()
-	err = stored.Ws.WriteJSON(map[string]any{
+	client.Mu.Lock()
+	err = client.Ws.WriteJSON(map[string]any{
 		"event":    "init",
 		"users":    users,
-		"nickname": stored.NickName,
+		"nickname": client.NickName,
 	})
-	stored.Mu.Unlock()
+	client.Mu.Unlock()
 	if err != nil {
 		return err
 	}
 
-	for name, c := range clients {
+	for name, cs := range clients {
 		if name == client.NickName {
 			continue
 		}
 
-		c.Mu.Lock()
-		c.Ws.WriteJSON(map[string]any{
-			"event":    "join",
-			"newcomer": client.NickName,
-		})
-		c.Mu.Unlock()
+		for _, c := range cs {
+			c.Mu.Lock()
+			c.Ws.WriteJSON(map[string]any{
+				"event":    "join",
+				"newcomer": client.NickName,
+			})
+			c.Mu.Unlock()
+		}
 	}
 	return nil
 }
 
-func Reconnect(clients map[string]*models.Client, db *sql.DB, nickname string) error {
-	client, ok := clients[nickname]
-	if !ok {
+func Reconnect(clients map[string][]*models.Client, db *sql.DB, nickname string) error {
+	cs, ok := clients[nickname]
+	if !ok || len(cs) == 0 {
 		return nil
 	}
 
@@ -59,29 +58,53 @@ func Reconnect(clients map[string]*models.Client, db *sql.DB, nickname string) e
 		return err
 	}
 
-	client.Mu.Lock()
-	err = client.Ws.WriteJSON(map[string]any{
-		"event":    "init",
-		"users":    users,
-		"nickname": nickname,
-	})
-	client.Mu.Unlock()
+	for _, client := range cs {
+		client.Mu.Lock()
+		err = client.Ws.WriteJSON(map[string]any{
+			"event":    "init",
+			"users":    users,
+			"nickname": nickname,
+		})
+		client.Mu.Unlock()
+		if err != nil {
+			return err
+		}
+	}
 
-	return err
+	return nil
 }
 
-func Disconnect(clients map[string]*models.Client, senderName string) {
-	delete(clients, senderName)
-	for name, c := range clients {
-		if name == senderName {
-			continue
-		}
+func Disconnect(clients map[string][]*models.Client, client *models.Client) {
+	nickname := client.NickName
+	cs, ok := clients[nickname]
+	if !ok {
+		return
+	}
 
-		c.Mu.Lock()
-		c.Ws.WriteJSON(map[string]any{
-			"event": "leave",
-			"left":  senderName,
-		})
-		c.Mu.Unlock()
+	// Remove specific connection
+	for i, c := range cs {
+		if c == client {
+			clients[nickname] = append(cs[:i], cs[i+1:]...)
+			break
+		}
+	}
+
+	// If no connections left for this user, broadcast "leave"
+	if len(clients[nickname]) == 0 {
+		delete(clients, nickname)
+		for name, cs := range clients {
+			if name == nickname {
+				continue
+			}
+
+			for _, c := range cs {
+				c.Mu.Lock()
+				c.Ws.WriteJSON(map[string]any{
+					"event": "leave",
+					"left":  nickname,
+				})
+				c.Mu.Unlock()
+			}
+		}
 	}
 }

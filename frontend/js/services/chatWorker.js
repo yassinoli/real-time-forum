@@ -97,6 +97,13 @@ self.onconnect = (e) => {
         switch (msg.type) {
             case "connect":
                 connectWebSocket()
+                if (socket.readyState === WebSocket.CONNECTING) {
+                    socket.addEventListener('open', () => {
+                        sendToSocket(msg.payload)
+                    }, { once: true })
+                } else {
+                    sendToSocket(msg.payload)
+                }
                 break
 
             case "disconnect":

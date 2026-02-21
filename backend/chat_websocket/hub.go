@@ -9,20 +9,17 @@ import (
 )
 
 func RunBroker(db *sql.DB, hub *models.Hub) {
-	clients := make(map[string]*models.Client)
+	clients := make(map[string][]*models.Client)
 
 	for {
 		select {
 
 		case client := <-hub.Connect:
-			if oldConn, exists := clients[client.NickName]; exists {
-				oldConn.Ws.Close()
-			}
+			clients[client.NickName] = append(clients[client.NickName], client)
 
 			err := Connect(clients, db, client)
 			if err != nil {
 				fmt.Println("broker: connect error:", err)
-				delete(clients, client.NickName)
 				continue
 			}
 
@@ -66,9 +63,7 @@ func RunBroker(db *sql.DB, hub *models.Hub) {
 			}
 
 		case client := <-hub.Disconnect:
-			if _, ok := clients[client.NickName]; ok {
-				Disconnect(clients, client.NickName)
-			}
+			Disconnect(clients, client)
 		}
 	}
 }

@@ -18,11 +18,13 @@ export let worker = null
 export let workerPort = null
 export let portKey = null
 
-export const handleChatFront = () => {
+export const handleChatFront = (nickName) => {
     if (workerPort && portKey) {
         workerPort.postMessage({ type: "disconnect-tab", portKey })
         workerPort.close()
     }
+
+    currentUser.nickName = nickName
 
     worker = new SharedWorker("/statics/js/services/sharedWorker.js")
     workerPort = worker.port
@@ -32,11 +34,9 @@ export const handleChatFront = () => {
     workerPort.postMessage({
         type: "connect", payload: {
             type: "reconnect",
-            sender: currentUser.nickName,
+            sender: nickName,
         }
     })
-
-
 
     setupEventListeners()
 
@@ -53,8 +53,8 @@ export const handleChatFront = () => {
             case "ws-close": {
                 workerPort.postMessage({ type: "logout" })
                 workerPort.close()
-                window.history.pushState({}, "", "/")
-                HandleRouting()
+                // Do not redirect on WS close to avoid loop between browsers
+                break
             }
 
             case "init": {
