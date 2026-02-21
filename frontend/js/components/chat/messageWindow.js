@@ -125,7 +125,7 @@ export const removeTyping = () => {
 const openChat = (user) => {
     const chatCont = document.querySelector(".chat-container")
 
-    const header = createUserNode(user, { clickable: false, receiver: true })
+    const header = createUserNode(user, { clickable: true, receiver: true })
     header.removeAttribute("id")
 
     chatCont.prepend(header)

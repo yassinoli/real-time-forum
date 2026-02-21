@@ -31,6 +31,8 @@ export const handleChatFront = () => {
         }
     })
 
+
+
     setupEventListeners()
 
     workerPort.onmessage = (event) => {
@@ -95,7 +97,6 @@ export const handleChatFront = () => {
             }
 
             case "join": {
-                console.log(data)
                 const el = document.getElementById(data.newcomer)
                 if (!el) insertInList(data.newcomer)
                 else updateCurrentEl(el, data.newcomer)
@@ -122,4 +123,5 @@ export const handleChatFront = () => {
     window.addEventListener("beforeunload", () => {
         workerPort.postMessage({ type: "disconnect-tab", portKey })
     })
+
 }

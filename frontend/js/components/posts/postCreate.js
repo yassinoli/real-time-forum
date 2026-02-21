@@ -89,7 +89,6 @@ async function submitPost(form) {
         }
 
         const post = await response.json()
-        console.log('Post created successfully:', post)
 
         const createPostDiv = document.querySelector('.creatPostDiv')
         if (createPostDiv) createPostDiv.remove()

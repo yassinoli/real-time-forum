@@ -23,7 +23,7 @@ onconnect = function (e) {
 
             case "connect": {
                 if (!socket) {
-                    socket = new WebSocket("ws://10.1.9.6:8080/ws/chat")
+                    socket = new WebSocket("ws://localhost:8080/ws/chat")
 
                     socket.onmessage = (e) => {
                         try {
