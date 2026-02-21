@@ -200,16 +200,17 @@ export const addMessage = (msg, history = false) => {
 export const showOldMessage = (oldMessages) => {
     const cont = document.getElementById("messages")
 
-    if (oldMessages.length < 10) {
-        messages.hasmore = false
-        return
-    }
-
-    messages.currentOffset += oldMessages.length
-
+    // Always render fetched messages first, even if fewer than page size.
     const prevScrollHeight = cont.scrollHeight
 
     oldMessages.forEach(msg => addMessage(msg, true))
+
+    // Update offset and hasmore flag after rendering
+    messages.currentOffset += oldMessages.length
+
+    if (oldMessages.length < 10) {
+        messages.hasmore = false
+    }
 
     if (messages.currentOffset === oldMessages.length) cont.scrollTop = cont.scrollHeight
     else cont.scrollTop += cont.scrollHeight - prevScrollHeight
