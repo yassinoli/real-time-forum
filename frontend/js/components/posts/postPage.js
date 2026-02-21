@@ -123,6 +123,10 @@ function setupInfiniteScroll() {
     // Supprimer ancien observer si existe
     if (observer) observer.disconnect()
 
+    // Supprimer ancien sentinel s'il existe dans le DOM
+    const existingSentinel = document.getElementById('scroll-sentinel')
+    if (existingSentinel) existingSentinel.remove()
+
     // Créer le sentinel
     sentinel = document.createElement('div')
     sentinel.id = 'scroll-sentinel'
@@ -178,8 +182,10 @@ async function loadMorePosts() {
             )
         }
 
-        // Append new posts to existing list
+        // Append new posts to existing list (skip duplicates)
         filteredPosts.forEach(post => {
+            if (allPosts.some(p => p.postId === post.postId)) return
+            if (document.getElementById(`post-${post.postId}`)) return
             displayPost(post)
             allPosts.push(post)
         })
@@ -190,10 +196,7 @@ async function loadMorePosts() {
     } finally {
         isLoading = false
     }
-    // Replacer le sentinel à la fin
-if (sentinel) {
-    main.appendChild(sentinel)
-}
+    // sentinel est géré par setupInfiniteScroll; pas besoin de le ré-appender ici
 
 }
 
@@ -229,6 +232,9 @@ function displayPosts(posts) {
 
 // Display a single post
 function displayPost(post) {
+    // Eviter d'ajouter un post déjà présent dans le DOM
+    if (document.getElementById(`post-${post.postId}`)) return
+
     let container = document.createElement('div')
     container.className = 'postContainer'
     container.id = `post-${post.postId}`
