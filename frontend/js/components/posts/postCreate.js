@@ -84,7 +84,8 @@ async function submitPost(form) {
         if (!response.ok) {
             const error = await response.text()
             console.error('Server error:', error)
-            alert('Failed to create post: ' + error)
+            let er = JSON.parse(error)
+            alert('Failed to create post: ' + er.error)
             return
         }
 
