@@ -4,7 +4,8 @@ import { sendStopTyping } from "./messageInput.js"
 import { createUserNode, updateOnlineMarker } from "./userList.js"
 
 export class Message {
-    constructor(content, type, sender, receiver, time) {
+    constructor(content, type, sender, receiver, time, id = null) {
+        this.id = id
         this.content = content
         this.type = type
         this.sender = sender
@@ -64,7 +65,7 @@ const loadMore = throttle(() => {
             type: "load_history",
             sender: currentUser.nickName,
             receiver: document.getElementById('receiver').textContent,
-            offset: messages.currentOffset,
+            beforeTime: messages.oldestTime || Date.now(),
             portKey,
         }
     })
@@ -131,7 +132,7 @@ const openChat = (user) => {
     chatCont.prepend(header)
     chatCont.style.display = "flex"
 
-    messages.currentOffset = 0
+    messages.oldestTime = 0
     messages.hasmore = true
 
     const cont = document.getElementById("messages")
@@ -144,7 +145,7 @@ const switchChat = (user) => {
     document.getElementById("receiver").textContent = user.nickname
 
     observer.disconnect()
-    messages.currentOffset = 0
+    messages.oldestTime = 0
     messages.hasmore = true
     document.getElementById("messages").innerHTML = `<div id="sentinel"></div>`
     observer.observe(document.getElementById("sentinel"))
@@ -187,7 +188,7 @@ export const SwapChat = (user) => {
 
 export const addMessage = (msg, history = false) => {
     const type = msg.sender === currentUser.nickName ? "me" : "other"
-    const message = new Message(msg.content, type, msg.sender, msg.receiver, msg.time)
+    const message = new Message(msg.content, type, msg.sender, msg.receiver, msg.time, msg.id)
     const messagesContainer = document.getElementById("messages")
 
     if (history) {
@@ -203,17 +204,19 @@ export const showOldMessage = (oldMessages) => {
     // Always render fetched messages first, even if fewer than page size.
     const prevScrollHeight = cont.scrollHeight
 
+    // capture whether cursor was initialized before rendering
+    const firstBatch = messages.oldestTime === 0
+
     oldMessages.forEach(msg => addMessage(msg, true))
 
-    // Update offset and hasmore flag after rendering
-    messages.currentOffset += oldMessages.length
+    // remember cursor (oldest timestamp) from the last element in batch
+    if (oldMessages.length > 0) {
+        messages.oldestTime = oldMessages[oldMessages.length - 1].time
+    }
 
     if (oldMessages.length < 10) {
         messages.hasmore = false
     }
-
-    if (messages.currentOffset === oldMessages.length) cont.scrollTop = cont.scrollHeight
-    else cont.scrollTop += cont.scrollHeight - prevScrollHeight
 
     if (cont.scrollHeight <= cont.clientHeight && messages.hasmore) {
         workerPort.postMessage({
@@ -222,10 +225,17 @@ export const showOldMessage = (oldMessages) => {
                 type: "load_history",
                 sender: currentUser.nickName,
                 receiver: document.getElementById('receiver').textContent,
-                offset: messages.currentOffset,
+                beforeTime: messages.oldestTime,
                 portKey,
             }
         })
+    }
+
+    if (firstBatch) {
+        // first page: scroll to bottom so user sees newest messages
+        cont.scrollTop = cont.scrollHeight
+    } else {
+        cont.scrollTop += cont.scrollHeight - prevScrollHeight
     }
 }
 

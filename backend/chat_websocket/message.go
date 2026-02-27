@@ -42,6 +42,7 @@ func GetOldMessages(clients map[string][]*models.Client, db *sql.DB, msg models.
 		return nil
 	}
 
+	// mark everything read for this conversation before sending history
 	err := sqlite.MarkRead(db, msg.Sender, msg.Receiver)
 	if err != nil {
 		return err
@@ -56,6 +57,7 @@ func GetOldMessages(clients map[string][]*models.Client, db *sql.DB, msg models.
 		client.Mu.Unlock()
 	}
 
+	// fetch a page of messages older than the provided timestamp (cursor)
 	messages, err := sqlite.SelectOldMessages(db, &msg)
 	if err != nil {
 		return err

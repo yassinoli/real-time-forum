@@ -11,7 +11,8 @@ export const currentUser = {
 
 export const messages = {
     hasmore: true,
-    currentOffset: 0,
+    // cursor value (timestamp of the oldest message already loaded)
+    oldestTime: 0,
 }
 
 export let worker = null

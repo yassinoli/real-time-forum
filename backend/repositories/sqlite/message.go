@@ -2,6 +2,7 @@ package sqlite
 
 import (
 	"database/sql"
+	"time"
 
 	"real-time-forum/backend/models"
 
@@ -83,16 +84,21 @@ func SelectUnreadCount(db *sql.DB, msg *models.Message) (int, error) {
 }
 
 func SelectOldMessages(db *sql.DB, msg *models.Message) ([]models.Message, error) {
+	// when no before time is provided, assume now so caller gets the latest messages
+	if msg.BeforeTime == 0 {
+		msg.BeforeTime = time.Now().UnixMilli()
+	}
+
 	rows, err := db.Query(`
-		SELECT pm.created_at, pm.content, us.nickname, ur.nickname
+		SELECT pm.id, pm.created_at, pm.content, us.nickname, ur.nickname
 		FROM private_message pm
 		JOIN user us ON us.id = pm.sender_id
 		JOIN user ur ON ur.id = pm.receiver_id
-		WHERE (us.nickname = ? AND ur.nickname = ?)
-		OR (us.nickname = ? AND ur.nickname = ?)
+		WHERE ((us.nickname = ? AND ur.nickname = ?) OR (us.nickname = ? AND ur.nickname = ?))
+		  AND pm.created_at < ?
 		ORDER BY pm.created_at DESC
-		LIMIT 10 OFFSET ?
-	`, msg.Sender, msg.Receiver, msg.Receiver, msg.Sender, msg.Offset)
+		LIMIT 10
+	`, msg.Sender, msg.Receiver, msg.Receiver, msg.Sender, msg.BeforeTime)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +108,7 @@ func SelectOldMessages(db *sql.DB, msg *models.Message) ([]models.Message, error
 	messages := []models.Message{}
 	for rows.Next() {
 		var m models.Message
-		if err := rows.Scan(&m.Time, &m.Content, &m.Sender, &m.Receiver); err != nil {
+		if err := rows.Scan(&m.ID, &m.Time, &m.Content, &m.Sender, &m.Receiver); err != nil {
 			continue
 		}
 		messages = append(messages, m)
@@ -116,6 +122,9 @@ func InsertNewMessage(db *sql.DB, msg *models.Message) error {
 	if err != nil {
 		return err
 	}
+
+	// attach generated ID back to caller
+	msg.ID = messageID.String()
 
 	_, err = db.Exec(`
 		INSERT INTO private_message (id, sender_id, receiver_id, content, created_at)

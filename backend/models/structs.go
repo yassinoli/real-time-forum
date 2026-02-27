@@ -37,13 +37,14 @@ type Client struct {
 }
 
 type Message struct {
-	Type     string `json:"type"`
-	Sender   string `json:"sender"`
-	Receiver string `json:"receiver"`
-	Content  string `json:"content"`
-	Time     int64  `json:"time"`
-	Offset   int    `json:"offset"`
-	PortKey  string `json:"portKey"`
+	ID         string `json:"id,omitempty"`
+	Type       string `json:"type"`
+	Sender     string `json:"sender"`
+	Receiver   string `json:"receiver"`
+	Content    string `json:"content"`
+	Time       int64  `json:"time"`
+	BeforeTime int64  `json:"beforeTime,omitempty"`
+	PortKey    string `json:"portKey"`
 }
 
 type OtherClient struct {
