@@ -201,15 +201,10 @@ export const addMessage = (msg, history = false) => {
 export const showOldMessage = (oldMessages) => {
     const cont = document.getElementById("messages")
 
-    // Always render fetched messages first, even if fewer than page size.
-    const prevScrollHeight = cont.scrollHeight
-
-    // capture whether cursor was initialized before rendering
-    const firstBatch = messages.oldestTime === 0
-
     oldMessages.forEach(msg => addMessage(msg, true))
 
-    // remember cursor (oldest timestamp) from the last element in batch
+    if (messages.oldestTime === 0) cont.scrollTop += cont.scrollHeight
+
     if (oldMessages.length > 0) {
         messages.oldestTime = oldMessages[oldMessages.length - 1].time
     }
@@ -231,12 +226,6 @@ export const showOldMessage = (oldMessages) => {
         })
     }
 
-    if (firstBatch) {
-        // first page: scroll to bottom so user sees newest messages
-        cont.scrollTop = cont.scrollHeight
-    } else {
-        cont.scrollTop += cont.scrollHeight - prevScrollHeight
-    }
 }
 
 export const showNewMessage = (message, list) => {
